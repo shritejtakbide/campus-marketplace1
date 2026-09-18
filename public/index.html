@@ -1,0 +1,974 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Campus Marketplace</title>
+
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+<!-- ==================================================
+     BACKGROUND
+================================================== -->
+
+<div class="background">
+    <div class="gradient-circle circle-one"></div>
+    <div class="gradient-circle circle-two"></div>
+    <div class="gradient-circle circle-three"></div>
+</div>
+
+
+<!-- ==================================================
+     NAVBAR
+================================================== -->
+
+<header class="navbar glass">
+
+    <div class="logo">
+        <span class="logo-icon">🎓</span>
+        Campus<span>Market</span>
+    </div>
+
+    <nav class="nav-links">
+
+        <button onclick="showPage('home')">
+            Home
+        </button>
+
+        <button onclick="showPage('products')">
+            Marketplace
+        </button>
+
+        <button onclick="showPage('sell')">
+            Sell
+        </button>
+
+        <button onclick="showPage('verification')">
+            Verification
+        </button>
+
+        <button onclick="showPage('chat')">
+            Chat
+        </button>
+
+    </nav>
+
+    <button
+        class="login-button"
+        onclick="showPage('login')">
+
+        Login
+
+    </button>
+
+</header>
+
+
+<!-- ==================================================
+     HOME
+================================================== -->
+
+<main>
+
+<section
+    id="home"
+    class="page active">
+
+    <div class="home-container">
+
+        <div class="home-content">
+
+            <div class="tag">
+                🎓 STUDENT MARKETPLACE
+            </div>
+
+            <h1>
+                Buy & Sell
+                <span>Within Your Campus</span>
+            </h1>
+
+            <p>
+                A simple and trusted marketplace where
+                students can buy, sell and exchange
+                products with other students.
+            </p>
+
+            <div class="home-buttons">
+
+                <button
+                    class="primary-button"
+                    onclick="showPage('products')">
+
+                    Explore Marketplace
+
+                </button>
+
+                <button
+                    class="outline-button"
+                    onclick="showPage('sell')">
+
+                    Sell Product
+
+                </button>
+
+            </div>
+
+        </div>
+
+
+        <div class="home-preview glass">
+
+            <div class="preview-top">
+
+                <span>Campus Marketplace</span>
+
+                <span class="status-dot">
+                    ●
+                </span>
+
+            </div>
+
+            <div class="preview-product">
+
+                <div class="preview-image">
+                    📚
+                </div>
+
+                <div>
+
+                    <h3>
+                        Engineering Books
+                    </h3>
+
+                    <p>
+                        Used • Good Condition
+                    </p>
+
+                    <strong>
+                        ₹350
+                    </strong>
+
+                </div>
+
+            </div>
+
+
+            <div class="preview-product">
+
+                <div class="preview-image">
+                    🎧
+                </div>
+
+                <div>
+
+                    <h3>
+                        Wireless Earphones
+                    </h3>
+
+                    <p>
+                        Like New
+                    </p>
+
+                    <strong>
+                        ₹800
+                    </strong>
+
+                </div>
+
+            </div>
+
+
+            <div class="preview-footer">
+
+                <span>
+                    ✓ Verified Students
+                </span>
+
+                <span>
+                    🔒 Safe
+                </span>
+
+            </div>
+
+        </div>
+
+    </div>
+
+
+    <!-- FEATURES -->
+
+    <div class="features">
+
+        <div class="feature-card glass">
+
+            <div class="feature-icon">
+                🔐
+            </div>
+
+            <h3>
+                Verified Students
+            </h3>
+
+            <p>
+                Connect with verified
+                campus members.
+            </p>
+
+        </div>
+
+
+        <div class="feature-card glass">
+
+            <div class="feature-icon">
+                🛒
+            </div>
+
+            <h3>
+                Easy Buying
+            </h3>
+
+            <p>
+                Find useful products
+                around your campus.
+            </p>
+
+        </div>
+
+
+        <div class="feature-card glass">
+
+            <div class="feature-icon">
+                💬
+            </div>
+
+            <h3>
+                Student Chat
+            </h3>
+
+            <p>
+                Chat directly with
+                sellers and buyers.
+            </p>
+
+        </div>
+
+    </div>
+
+</section>
+
+
+<!-- ==================================================
+     MARKETPLACE
+================================================== -->
+
+<section
+    id="products"
+    class="page">
+
+    <div class="page-title">
+
+        <div class="tag">
+            🛍️ MARKETPLACE
+        </div>
+
+        <h1>
+            Find What You Need
+        </h1>
+
+        <p>
+            Browse products listed by students.
+        </p>
+
+    </div>
+
+
+    <div class="search-container glass">
+
+        <input
+            id="searchInput"
+            type="text"
+            placeholder="🔍 Search products..."
+            oninput="filterProducts()"
+        >
+
+
+        <select
+            id="categoryFilter"
+            onchange="filterProducts()">
+
+            <option value="all">
+                All Categories
+            </option>
+
+            <option value="Books">
+                Books
+            </option>
+
+            <option value="Electronics">
+                Electronics
+            </option>
+
+            <option value="Furniture">
+                Furniture
+            </option>
+
+            <option value="Accessories">
+                Accessories
+            </option>
+
+        </select>
+
+    </div>
+
+
+    <div
+        id="productGrid"
+        class="product-grid">
+
+    </div>
+
+</section>
+
+
+<!-- ==================================================
+     SELL
+================================================== -->
+
+<section
+    id="sell"
+    class="page">
+
+    <div class="form-wrapper">
+
+        <div class="page-title">
+
+            <div class="tag">
+                📦 SELL
+            </div>
+
+            <h1>
+                Sell Your Product
+            </h1>
+
+            <p>
+                List your product for other students.
+            </p>
+
+        </div>
+
+
+        <div class="form-card glass">
+
+            <form id="sellForm">
+
+                <div class="form-group">
+
+                    <label>
+                        Product Name
+                    </label>
+
+                    <input
+                        id="productName"
+                        type="text"
+                        placeholder="Enter product name"
+                        required
+                    >
+
+                </div>
+
+
+                <div class="form-group">
+
+                    <label>
+                        Category
+                    </label>
+
+                    <select
+                        id="productCategory"
+                        required>
+
+                        <option value="">
+                            Select category
+                        </option>
+
+                        <option value="Books">
+                            Books
+                        </option>
+
+                        <option value="Electronics">
+                            Electronics
+                        </option>
+
+                        <option value="Furniture">
+                            Furniture
+                        </option>
+
+                        <option value="Accessories">
+                            Accessories
+                        </option>
+
+                    </select>
+
+                </div>
+
+
+                <div class="form-group">
+
+                    <label>
+                        Price
+                    </label>
+
+                    <input
+                        id="productPrice"
+                        type="number"
+                        placeholder="₹ Enter price"
+                        required
+                    >
+
+                </div>
+
+
+                <div class="form-group">
+
+                    <label>
+                        Description
+                    </label>
+
+                    <textarea
+                        id="productDescription"
+                        placeholder="Describe your product..."
+                        required>
+                    </textarea>
+
+                </div>
+
+
+                <button
+                    type="submit"
+                    class="primary-button full-button">
+
+                    List Product
+
+                </button>
+
+            </form>
+
+
+            <div
+                id="sellMessage"
+                class="form-message">
+
+            </div>
+
+        </div>
+
+    </div>
+
+</section>
+
+
+<!-- ==================================================
+     VERIFICATION
+================================================== -->
+
+<section
+    id="verification"
+    class="page">
+
+    <div class="verification-wrapper">
+
+        <div class="page-title">
+
+            <div class="tag">
+                🔐 TRUST & VERIFICATION
+            </div>
+
+            <h1>
+                Verify Your Campus Account
+            </h1>
+
+            <p>
+                Verification helps students build trust
+                before buying and selling.
+            </p>
+
+        </div>
+
+
+        <!-- WORKFLOW -->
+
+        <div class="verification-workflow">
+
+            <div class="workflow-card glass">
+
+                <div class="workflow-number">
+                    01
+                </div>
+
+                <h3>
+                    Student Details
+                </h3>
+
+                <p>
+                    Enter your name,
+                    email and student ID.
+                </p>
+
+            </div>
+
+
+            <div class="workflow-arrow">
+                →
+            </div>
+
+
+            <div class="workflow-card glass">
+
+                <div class="workflow-number">
+                    02
+                </div>
+
+                <h3>
+                    Upload ID
+                </h3>
+
+                <p>
+                    Upload your college
+                    identity card.
+                </p>
+
+            </div>
+
+
+            <div class="workflow-arrow">
+                →
+            </div>
+
+
+            <div class="workflow-card glass">
+
+                <div class="workflow-number">
+                    03
+                </div>
+
+                <h3>
+                    Verification
+                </h3>
+
+                <p>
+                    System checks the
+                    submitted information.
+                </p>
+
+            </div>
+
+
+            <div class="workflow-arrow">
+                →
+            </div>
+
+
+            <div class="workflow-card glass">
+
+                <div class="workflow-number">
+                    04
+                </div>
+
+                <h3>
+                    Verified
+                </h3>
+
+                <p>
+                    Receive your verified
+                    student badge.
+                </p>
+
+            </div>
+
+        </div>
+
+
+        <!-- VERIFICATION FORM -->
+
+        <div class="verification-card glass">
+
+            <div class="verification-heading">
+
+                <div>
+
+                    <h2>
+                        Student Verification
+                    </h2>
+
+                    <p>
+                        Complete the form below.
+                    </p>
+
+                </div>
+
+
+                <span
+                    id="verificationBadge"
+                    class="verification-badge pending">
+
+                    Not Verified
+
+                </span>
+
+            </div>
+
+
+            <form id="verificationForm">
+
+                <div class="two-column">
+
+                    <div class="form-group">
+
+                        <label>
+                            Full Name
+                        </label>
+
+                        <input
+                            id="verifyName"
+                            type="text"
+                            placeholder="Enter full name"
+                            required
+                        >
+
+                    </div>
+
+
+                    <div class="form-group">
+
+                        <label>
+                            College Email
+                        </label>
+
+                        <input
+                            id="verifyEmail"
+                            type="email"
+                            placeholder="Enter college email"
+                            required
+                        >
+
+                    </div>
+
+                </div>
+
+
+                <div class="two-column">
+
+                    <div class="form-group">
+
+                        <label>
+                            Student ID
+                        </label>
+
+                        <input
+                            id="studentId"
+                            type="text"
+                            placeholder="Enter student ID"
+                            required
+                        >
+
+                    </div>
+
+
+                    <div class="form-group">
+
+                        <label>
+                            Department
+                        </label>
+
+                        <select
+                            id="department"
+                            required>
+
+                            <option value="">
+                                Select department
+                            </option>
+
+                            <option>
+                                Computer Science
+                            </option>
+
+                            <option>
+                                Information Technology
+                            </option>
+
+                            <option>
+                                Mechanical Engineering
+                            </option>
+
+                            <option>
+                                Electronics Engineering
+                            </option>
+
+                            <option>
+                                Civil Engineering
+                            </option>
+
+                        </select>
+
+                    </div>
+
+                </div>
+
+
+                <!-- ID UPLOAD -->
+
+                <div class="upload-area">
+
+                    <div class="upload-icon">
+                        📄
+                    </div>
+
+                    <h3>
+                        Upload College ID
+                    </h3>
+
+                    <p>
+                        Select your college ID
+                        for verification.
+                    </p>
+
+                    <input
+                        id="collegeId"
+                        type="file"
+                        accept="image/*,.pdf"
+                    >
+
+                    <div
+                        id="fileName"
+                        class="file-name">
+
+                    </div>
+
+                </div>
+
+
+                <button
+                    type="submit"
+                    class="primary-button full-button">
+
+                    🔐 Start Verification
+
+                </button>
+
+            </form>
+
+
+            <div
+                id="verificationResult"
+                class="verification-result">
+
+            </div>
+
+        </div>
+
+    </div>
+
+</section>
+
+
+<!-- ==================================================
+     LOGIN
+================================================== -->
+
+<section
+    id="login"
+    class="page">
+
+    <div class="login-wrapper">
+
+        <div class="login-card glass">
+
+            <div class="login-icon">
+                🎓
+            </div>
+
+            <h1>
+                Welcome Back
+            </h1>
+
+            <p id="login-card-subtitle">
+                Login to your Campus Market account.
+            </p>
+
+
+            <form id="loginForm">
+
+                <div class="form-group">
+
+                    <label>
+                        Email
+                    </label>
+
+                    <input
+                        id="loginEmail"
+                        type="email"
+                        placeholder="Enter your email"
+                        required
+                    >
+
+                </div>
+
+
+                <div class="form-group">
+
+                    <label>
+                        Password
+                    </label>
+
+                    <input
+                        id="loginPassword"
+                        type="password"
+                        placeholder="Enter your password"
+                        required
+                    >
+
+                </div>
+
+
+                <button
+                    type="submit"
+                    class="primary-button full-button">
+
+                    Login
+
+                </button>
+
+            </form>
+
+
+            <div
+                id="loginMessage"
+                class="form-message">
+
+            </div>
+
+            <div class="auth-switch">
+                <span id="authSwitchText">New student?</span>
+                <button type="button" class="text-button" id="authSwitchButton">Create account</button>
+            </div>
+
+        </div>
+
+    </div>
+
+</section>
+
+
+<!-- ==================================================
+     CHAT
+================================================== -->
+
+<section
+    id="chat"
+    class="page">
+
+    <div class="chat-wrapper">
+
+        <div class="chat-card glass">
+
+            <div class="chat-header">
+
+                <div>
+
+                    <h2>
+                        💬 Student Chat
+                    </h2>
+
+                    <p>
+                        Chat with marketplace users
+                    </p>
+
+                </div>
+
+
+                <span class="online">
+                    ● Online
+                </span>
+
+            </div>
+
+
+            <div
+                id="chatMessages"
+                class="chat-messages">
+
+                <div class="chat-message received">
+
+                    Hey! Is this book still available?
+
+                </div>
+
+
+                <div class="chat-message sent">
+
+                    Yes, it is available 👍
+
+                </div>
+
+            </div>
+
+
+            <div class="chat-input">
+
+                <input
+                    id="chatInput"
+                    type="text"
+                    placeholder="Type a message..."
+                    onkeydown="handleChat(event)"
+                >
+
+                <button onclick="sendMessage()">
+                    ➤
+                </button>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</section>
+
+</main>
+
+
+<!-- ==================================================
+     TOAST
+================================================== -->
+
+
+<!-- PRODUCT DETAILS MODAL -->
+<div id="productModal" class="market-modal hidden" onclick="closeModal(event)">
+  <div class="market-modal-card glass" onclick="event.stopPropagation()">
+    <button class="modal-close" onclick="closeProductModal()">×</button>
+    <div id="productDetails"></div>
+  </div>
+</div>
+
+<div id="serverStatus" class="server-status" aria-live="polite">
+    <span class="status-dot-small"></span> Connecting to CampusMarket server...
+</div>
+
+
+<div
+    id="toast"
+    class="toast">
+
+    Success!
+
+</div>
+
+
+<script src="script.js"></script>
+
+</body>
+</html>
