@@ -76,7 +76,10 @@ function sendJSON(res, statusCode, data) {
 
   res.writeHead(statusCode, {
     "Content-Type": "application/json; charset=utf-8",
-    "Cache-Control": "no-store"
+    "Cache-Control": "no-store",
+    "X-Content-Type-Options": "nosniff",
+    "X-Frame-Options": "SAMEORIGIN",
+    "Referrer-Policy": "strict-origin-when-cross-origin"
   });
 
   res.end(JSON.stringify(data));
@@ -93,7 +96,10 @@ function sendText(
   }
 
   res.writeHead(statusCode, {
-    "Content-Type": contentType
+    "Content-Type": contentType,
+    "X-Content-Type-Options": "nosniff",
+    "X-Frame-Options": "SAMEORIGIN",
+    "Referrer-Policy": "strict-origin-when-cross-origin"
   });
 
   res.end(text);
@@ -426,14 +432,16 @@ function serveStatic(req, res) {
     path.resolve(PUBLIC_DIR);
 
   /*
-    Prevent directory traversal.
+    Prevent directory traversal and hidden file exposure.
   */
 
   if (
-    filePath !== publicRoot &&
-    !filePath.startsWith(
-      publicRoot + path.sep
-    )
+    requestedPath.startsWith(".") ||
+    path.basename(filePath).startsWith(".") ||
+    (filePath !== publicRoot &&
+      !filePath.startsWith(
+        publicRoot + path.sep
+      ))
   ) {
     return sendText(
       res,
@@ -470,7 +478,10 @@ function serveStatic(req, res) {
         "Content-Type":
           getContentType(filePath),
         "Cache-Control":
-          "public, max-age=3600"
+          "public, max-age=3600",
+        "X-Content-Type-Options": "nosniff",
+        "X-Frame-Options": "SAMEORIGIN",
+        "Referrer-Policy": "strict-origin-when-cross-origin"
       });
 
       res.end(data);
@@ -771,6 +782,21 @@ async function handleAPI(req, res) {
 
   const pathname =
     url.pathname;
+
+  /* =========================
+     PREFLIGHT (OPTIONS)
+  ========================= */
+
+  if (req.method === "OPTIONS") {
+    res.writeHead(204, {
+      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+      "Access-Control-Allow-Headers": "Content-Type, Authorization",
+      "Access-Control-Max-Age": "86400",
+      "X-Content-Type-Options": "nosniff"
+    });
+    return res.end();
+  }
 
   /* =========================
      HEALTH
@@ -2733,12 +2759,12 @@ async function handleAPI(req, res) {
 
     const studentName =
       String(
-        body.studentName || ""
+        body.studentName || body.name || ""
       ).trim();
 
     const studentEmail =
       String(
-        body.studentEmail || ""
+        body.studentEmail || body.email || ""
       )
         .trim()
         .toLowerCase();
@@ -2755,13 +2781,13 @@ async function handleAPI(req, res) {
 
     const documentName =
       safeFileName(
-        body.documentName ||
+        body.documentName || body.fileName ||
           "college_id"
       );
 
     const documentData =
       String(
-        body.documentData || ""
+        body.documentData || body.fileData || ""
       );
 
     if (
@@ -2843,6 +2869,14 @@ async function handleAPI(req, res) {
         ]
       );
 
+      await pool.execute(
+        `UPDATE users
+         SET student_verification_status = 'pending',
+             updated_at = NOW()
+         WHERE id = ?`,
+        [user.id]
+      );
+
       return sendJSON(
         res,
         200,
@@ -2851,7 +2885,14 @@ async function handleAPI(req, res) {
           message:
             "Verification submitted successfully.",
           status:
-            "pending"
+            "pending",
+          user: {
+            id: user.id,
+            name: studentName,
+            email: studentEmail,
+            studentId,
+            department
+          }
         }
       );
 

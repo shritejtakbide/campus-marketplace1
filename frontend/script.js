@@ -282,6 +282,17 @@ function displayProducts(list = products){
   if (!grid) return;
   grid.innerHTML = "";
 
+  if (productsLoadError) {
+    grid.innerHTML = `
+      <div class="empty-state glass">
+        <div class="empty-state-icon">⚠️</div>
+        <h3>Unable to load products</h3>
+        <p>${esc(productsLoadError)}</p>
+        <button class="outline-button small-button" style="margin-top: 14px;" onclick="loadProducts()">Try Again</button>
+      </div>`;
+    return;
+  }
+
   if (!list.length) {
     grid.innerHTML = `
       <div class="empty-state glass">
@@ -447,7 +458,7 @@ async function openProductDetails(id, event){
     let archiveAction = "";
     if (status !== "archived") {
       editAction = `<button class="outline-button seller-action-btn" onclick="openEditProductModal('${esc(p.id)}')">✏️ Edit Listing</button>`;
-      archiveAction = `<button class="outline-button seller-action-btn btn-archive" onclick="openArchiveModal('${esc(p.id)}', '${esc(p.name)}')">📦 Archive Listing</button>`;
+      archiveAction = `<button class="outline-button seller-action-btn btn-archive" onclick="openArchiveModal('${esc(p.id)}')">📦 Archive Listing</button>`;
     } else {
       archiveAction = `<span style="font-size:12px; color:#94a3b8; padding:8px 0;">This listing has been archived (private).</span>`;
     }
@@ -609,27 +620,39 @@ if(verificationForm) verificationForm.addEventListener("submit", async e => {
     const result = await api("/verification", {
       method:"POST",
       body:JSON.stringify({
-        name,email,studentId,department,
-        fileName:file.name,
-        fileType:file.type,
-        fileData:base64
+        studentName: name,
+        studentEmail: email,
+        studentId,
+        department,
+        documentName: file.name,
+        documentData: base64,
+        name,
+        email,
+        fileName: file.name,
+        fileType: file.type,
+        fileData: base64
       })
     });
 
-    localStorage.setItem(KEY.name,name);
-    badge.className = "verification-badge verified-badge";
-    badge.textContent = "✓ Verified";
+    localStorage.setItem(KEY.name, name);
+    badge.className = "verification-badge pending";
+    badge.textContent = "Under Review";
+
+    const verifiedUserName = (result.user && result.user.name) || name;
+    const verifiedUserEmail = (result.user && result.user.email) || email;
+    const verifiedStudentId = (result.user && result.user.studentId) || studentId;
+    const verifiedDepartment = (result.user && result.user.department) || department;
 
     document.getElementById("verificationResult").innerHTML = `
       <div class="success-box">
-        <h3>✓ Verification Successful</h3>
-        <p><strong>Name:</strong> ${esc(result.user.name)}<br>
-        <strong>Email:</strong> ${esc(result.user.email)}<br>
-        <strong>Student ID:</strong> ${esc(result.user.studentId)}<br>
-        <strong>Department:</strong> ${esc(result.user.department)}</p>
-        <span class="verified-small">✓ Verified Student</span>
+        <h3>✓ Verification Submitted</h3>
+        <p><strong>Name:</strong> ${esc(verifiedUserName)}<br>
+        <strong>Email:</strong> ${esc(verifiedUserEmail)}<br>
+        <strong>Student ID:</strong> ${esc(verifiedStudentId)}<br>
+        <strong>Department:</strong> ${esc(verifiedDepartment)}</p>
+        <span class="status-pill status-pending" style="display:inline-block; margin-top:8px;">● Pending Admin Review</span>
       </div>`;
-    showToast("🎉 Account verified!");
+    showToast("🎉 Verification submitted for review!");
     updateAuthButton();
   } catch(err) {
     badge.className = "verification-badge pending";
@@ -645,8 +668,13 @@ if(verificationForm) verificationForm.addEventListener("submit", async e => {
 
 function fileToBase64(file){
   return new Promise((resolve,reject)=>{
-    if(file.size > 5 * 1024 * 1024){
-      reject(new Error("College ID file must be 5 MB or smaller."));
+    const allowedTypes = ["image/jpeg", "image/png", "image/jpg", "image/webp", "application/pdf"];
+    if (file.type && !allowedTypes.includes(file.type.toLowerCase())) {
+      reject(new Error("Please upload a PNG, JPG, or PDF document."));
+      return;
+    }
+    if(file.size > 4 * 1024 * 1024){
+      reject(new Error("College ID file must be 4 MB or smaller."));
       return;
     }
     const reader = new FileReader();
@@ -674,10 +702,18 @@ async function loadVerificationStatus(){
 
   try {
     const data = await api("/me");
-    b.className = data.user.verified ? "verification-badge verified-badge" : "verification-badge pending";
-    b.textContent = data.user.verified ? "✓ Verified" : "Not Verified";
+    if (data.user.verified) {
+      b.className = "verification-badge verified-badge";
+      b.textContent = "✓ Verified";
+    } else if (data.user.studentVerificationStatus === "pending") {
+      b.className = "verification-badge pending";
+      b.textContent = "Under Review";
+    } else {
+      b.className = "verification-badge pending";
+      b.textContent = "Not Verified";
+    }
 
-    if(data.user.verified){
+    if(data.user.verified || data.user.studentVerificationStatus === "pending"){
       document.getElementById("verifyName").value = data.user.name || "";
       document.getElementById("verifyEmail").value = data.user.email || "";
       document.getElementById("studentId").value = data.user.studentId || "";
@@ -1249,6 +1285,7 @@ let currentAdminTab = "pending";
 let currentAdminPage = 1;
 let currentAdminTotalPages = 1;
 let pendingRejectUserId = null;
+let currentAdminRegistrations = [];
 
 function setAdminTab(status, btn) {
   currentAdminTab = status;
@@ -1269,6 +1306,7 @@ async function loadAdminRegistrations() {
   try {
     const data = await api(`/admin/registrations?status=${encodeURIComponent(currentAdminTab)}&page=${currentAdminPage}&limit=10`);
     const list = data.registrations || [];
+    currentAdminRegistrations = list;
     const pag = data.pagination || { page: 1, totalPages: 1, total: 0 };
     currentAdminPage = pag.page;
     currentAdminTotalPages = pag.totalPages;
@@ -1314,16 +1352,16 @@ async function loadAdminRegistrations() {
       let actionButtons = "";
       if (r.registrationStatus === "pending") {
         actionButtons = `
-          <button class="btn-approve" onclick="handleApproveRegistration(${r.id}, '${esc(r.name)}')">✓ Approve</button>
-          <button class="btn-reject" onclick="openAdminRejectModal(${r.id}, '${esc(r.name)}')">✕ Reject</button>
+          <button class="btn-approve" onclick="handleApproveRegistration(${r.id})">✓ Approve</button>
+          <button class="btn-reject" onclick="openAdminRejectModal(${r.id})">✕ Reject</button>
         `;
       } else if (r.registrationStatus === "approved") {
         actionButtons = `
-          <button class="btn-reject" onclick="openAdminRejectModal(${r.id}, '${esc(r.name)}')">✕ Reject</button>
+          <button class="btn-reject" onclick="openAdminRejectModal(${r.id})">✕ Reject</button>
         `;
       } else if (r.registrationStatus === "rejected") {
         actionButtons = `
-          <button class="btn-re-review" onclick="handleReReviewRegistration(${r.id}, '${esc(r.name)}')">↺ Return to Review</button>
+          <button class="btn-re-review" onclick="handleReReviewRegistration(${r.id})">↺ Return to Review</button>
         `;
       }
 
@@ -1384,6 +1422,10 @@ function changeAdminPage(delta) {
 }
 
 async function handleApproveRegistration(id, name) {
+  if (!name) {
+    const reg = (currentAdminRegistrations || []).find(x => Number(x.id) === Number(id));
+    name = reg ? reg.name : "student";
+  }
   try {
     await api(`/admin/registrations/${id}/approve`, { method: "POST" });
     showToast(`Approved registration for ${name}! ✓`);
@@ -1395,6 +1437,10 @@ async function handleApproveRegistration(id, name) {
 
 function openAdminRejectModal(id, name) {
   pendingRejectUserId = id;
+  if (!name) {
+    const reg = (currentAdminRegistrations || []).find(x => Number(x.id) === Number(id));
+    name = reg ? reg.name : "this student";
+  }
   const prompt = document.getElementById("adminRejectPrompt");
   const input = document.getElementById("adminRejectReasonInput");
   const modal = document.getElementById("adminRejectModal");
@@ -1436,6 +1482,10 @@ async function submitRejectRegistration() {
 }
 
 async function handleReReviewRegistration(id, name) {
+  if (!name) {
+    const reg = (currentAdminRegistrations || []).find(x => Number(x.id) === Number(id));
+    name = reg ? reg.name : "student";
+  }
   try {
     await api(`/admin/registrations/${id}/re-review`, { method: "POST" });
     showToast(`Moved ${name} back to pending for re-review.`);
@@ -1559,7 +1609,7 @@ function renderMyListings(list) {
           <button class="outline-button small-button" onclick="openProductDetails('${esc(p.id)}', event)">Details</button>
           <button class="outline-button small-button" onclick="openEditProductModal('${esc(p.id)}')">✏️ Edit</button>
           <button class="seller-action-btn btn-mark-sold" onclick="handleToggleStatus('${esc(p.id)}', 'sold')">✓ Mark Sold</button>
-          <button class="seller-action-btn btn-archive" onclick="openArchiveModal('${esc(p.id)}', '${esc(p.name)}')">📦 Archive</button>
+          <button class="seller-action-btn btn-archive" onclick="openArchiveModal('${esc(p.id)}')">📦 Archive</button>
         </div>
       `;
     } else if (status === "sold") {
@@ -1568,7 +1618,7 @@ function renderMyListings(list) {
           <button class="outline-button small-button" onclick="openProductDetails('${esc(p.id)}', event)">Details</button>
           <button class="outline-button small-button" onclick="openEditProductModal('${esc(p.id)}')">✏️ Edit</button>
           <button class="seller-action-btn btn-mark-active" onclick="handleToggleStatus('${esc(p.id)}', 'active')">↺ Relist</button>
-          <button class="seller-action-btn btn-archive" onclick="openArchiveModal('${esc(p.id)}', '${esc(p.name)}')">📦 Archive</button>
+          <button class="seller-action-btn btn-archive" onclick="openArchiveModal('${esc(p.id)}')">📦 Archive</button>
         </div>
       `;
     } else {
@@ -1695,6 +1745,10 @@ async function handleSaveProductEdit(e) {
 
 function openArchiveModal(id, name) {
   pendingArchiveProductId = id;
+  if (!name) {
+    const item = (myListings || []).find(x => String(x.id) === String(id)) || (products || []).find(x => String(x.id) === String(id));
+    name = item ? item.name : "";
+  }
   const prompt = document.getElementById("archiveConfirmPrompt");
   if (prompt) {
     prompt.textContent = `Are you sure you want to archive "${name || "this listing"}"? It will be removed from the public marketplace, but your conversation history will be preserved.`;
