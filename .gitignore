@@ -4,16 +4,34 @@ node_modules/
 
 # Environment configurations and secrets
 .env
-.env*.local
+.env.*
+!.env.example
 
-# Database backups (contain sensitive user data / credentials)
+# Credentials, tokens, and certificates
+*.pem
+*.key
+*.pfx
+*.p12
+
+# Database backups and private dumps
 database/backups/
+*.dump
+*.sql.gz
+*.sqlite
+*.db
 
 # Logs
+logs/
+*.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
+# IDE & Editor files
+.vscode/
+.idea/
+
 # Operating System Files
 .DS_Store
 Thumbs.db
+

@@ -20,6 +20,7 @@ let currentMyListingsTab = "all";
 let pendingArchiveProductId = null;
 let toastTimer;
 let authMode = "login";
+let currentResetToken = null;
 
 function token(){ return localStorage.getItem(KEY.token) || ""; }
 
@@ -52,6 +53,7 @@ const VALID_PAGES = new Set([
   "admin",
   "login",
   "register",
+  "reset-password",
   "terms",
   "privacy"
 ]);
@@ -64,6 +66,7 @@ function syncBodyScrollLock() {
 function closeAllModals() {
   closeProductModal();
   closeOtpModal();
+  closeForgotPasswordModal();
   closeAdminRejectModal();
   closeEditProductModal();
   closeArchiveModal();
@@ -122,10 +125,11 @@ function showPage(name, updateHash = true) {
   if (name === "verification") loadVerificationStatus();
   if (name === "chat") loadChat();
   if (name === "admin") loadAdminRegistrations();
+  if (name === "reset-password") loadResetPasswordPage();
 }
 
 window.addEventListener("popstate", () => {
-  const rawHash = (window.location.hash || "").replace(/^#/, "");
+  const rawHash = (window.location.hash || "").replace(/^#/, "").split("?")[0];
   const targetPage = VALID_PAGES.has(rawHash) ? rawHash : "home";
   showPage(targetPage, false);
 });
@@ -772,18 +776,173 @@ function setAuthMode(mode){
   const subtitle = document.querySelector("#login-card-subtitle");
   const switchText = document.getElementById("authSwitchText");
   const switchButton = document.getElementById("authSwitchButton");
+  const forgotRow = document.getElementById("forgotPasswordRow");
 
   if(mode === "register"){
     if(title) title.textContent = "Create Account";
     if(subtitle) subtitle.textContent = "Register your Campus Market account.";
     if(switchText) switchText.textContent = "Already a student?";
     if(switchButton) switchButton.textContent = "Login";
+    if(forgotRow) forgotRow.style.display = "none";
   } else {
     if(title) title.textContent = "Welcome Back";
     if(subtitle) subtitle.textContent = "Login to your Campus Market account.";
     if(switchText) switchText.textContent = "New student?";
     if(switchButton) switchButton.textContent = "Create account";
+    if(forgotRow) forgotRow.style.display = "block";
   }
+}
+
+/* =========================================================
+   PHASE 5: PASSWORD RECOVERY & RESET UI HANDLERS
+========================================================= */
+
+function openForgotPasswordModal(prefillEmail = "") {
+  closeAllModals();
+  const modal = document.getElementById("forgotPasswordModal");
+  if (!modal) return;
+  const emailInput = document.getElementById("forgotEmail");
+  if (emailInput) {
+    const currentLoginEmail = document.getElementById("loginEmail")?.value || "";
+    emailInput.value = prefillEmail || currentLoginEmail.trim();
+  }
+  const msg = document.getElementById("forgotPasswordMessage");
+  if (msg) msg.innerHTML = "";
+  modal.classList.remove("hidden");
+  syncBodyScrollLock();
+  setTimeout(() => emailInput?.focus(), 50);
+}
+
+function closeForgotPasswordModal(e) {
+  if (e && e.target !== e.currentTarget && !e.target.classList.contains("modal-close")) return;
+  const modal = document.getElementById("forgotPasswordModal");
+  if (modal) modal.classList.add("hidden");
+  syncBodyScrollLock();
+}
+
+function getResetTokenFromUrl() {
+  const hash = window.location.hash || "";
+  const qIdx = hash.indexOf("?");
+  if (qIdx !== -1) {
+    const params = new URLSearchParams(hash.slice(qIdx));
+    if (params.get("token")) return params.get("token").trim();
+  }
+  const searchParams = new URLSearchParams(window.location.search);
+  return (searchParams.get("token") || "").trim();
+}
+
+async function loadResetPasswordPage() {
+  const token = getResetTokenFromUrl();
+  const notice = document.getElementById("resetTokenStateError");
+  const form = document.getElementById("resetPasswordForm");
+  const msg = document.getElementById("resetPasswordMessage");
+  if (msg) msg.innerHTML = "";
+
+  if (!token) {
+    if (notice) {
+      notice.textContent = "No password reset token provided. Please use the link sent to your email or request a new recovery link.";
+      notice.classList.remove("hidden");
+    }
+    if (form) form.classList.add("hidden");
+    return;
+  }
+
+  currentResetToken = token;
+
+  // Verify token state with backend
+  try {
+    const data = await api("/auth/verify-reset-token?token=" + encodeURIComponent(token));
+    if (data.valid) {
+      if (notice) notice.classList.add("hidden");
+      if (form) form.classList.remove("hidden");
+    }
+  } catch (err) {
+    if (notice) {
+      notice.textContent = err.message || "This password reset token is invalid, expired, or has already been used.";
+      notice.classList.remove("hidden");
+    }
+    if (form) form.classList.add("hidden");
+  }
+}
+
+const forgotPasswordForm = document.getElementById("forgotPasswordForm");
+if (forgotPasswordForm) {
+  forgotPasswordForm.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const email = document.getElementById("forgotEmail").value.trim();
+    const msg = document.getElementById("forgotPasswordMessage");
+    const btn = document.getElementById("forgotPasswordSubmitBtn");
+
+    if (!email) {
+      msg.innerHTML = '<span class="error-text">Please enter your email address.</span>';
+      return;
+    }
+
+    btn.disabled = true;
+    btn.textContent = "Sending link...";
+    msg.innerHTML = "";
+
+    try {
+      const data = await api("/auth/forgot-password", {
+        method: "POST",
+        body: JSON.stringify({ email })
+      });
+      msg.innerHTML = `<span class="success-text">✓ ${esc(data.message || "If that email address is registered, password reset instructions have been sent.")}</span>`;
+      showToast("Password recovery email sent! ✉️");
+    } catch (err) {
+      msg.innerHTML = `<span class="error-text">⚠ ${esc(err.message)}</span>`;
+    } finally {
+      btn.disabled = false;
+      btn.textContent = "Send Recovery Link";
+    }
+  });
+}
+
+const resetPasswordForm = document.getElementById("resetPasswordForm");
+if (resetPasswordForm) {
+  resetPasswordForm.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const token = currentResetToken || getResetTokenFromUrl();
+    const newPassword = document.getElementById("resetNewPassword").value;
+    const confirmPassword = document.getElementById("resetConfirmPassword").value;
+    const msg = document.getElementById("resetPasswordMessage");
+    const btn = document.getElementById("resetPasswordSubmitBtn");
+
+    if (!token) {
+      msg.innerHTML = '<span class="error-text">Missing reset token. Please use the link sent to your email.</span>';
+      return;
+    }
+
+    if (!newPassword || newPassword.length < 6) {
+      msg.innerHTML = '<span class="error-text">Password must be at least 6 characters long.</span>';
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      msg.innerHTML = '<span class="error-text">Passwords do not match. Please re-enter.</span>';
+      return;
+    }
+
+    btn.disabled = true;
+    btn.textContent = "Updating Password...";
+    msg.innerHTML = "";
+
+    try {
+      const data = await api("/auth/reset-password", {
+        method: "POST",
+        body: JSON.stringify({ token, newPassword })
+      });
+      msg.innerHTML = `<span class="success-text">✓ ${esc(data.message || "Password updated successfully!")} Redirecting to login...</span>`;
+      showToast("Password successfully reset! 🔒");
+      setTimeout(() => {
+        showPage("login");
+      }, 1500);
+    } catch (err) {
+      msg.innerHTML = `<span class="error-text">⚠ ${esc(err.message)}</span>`;
+      btn.disabled = false;
+      btn.textContent = "Update Password";
+    }
+  });
 }
 
 document.getElementById("authSwitchButton")?.addEventListener("click", ()=>{
@@ -1245,7 +1404,7 @@ async function boot(){
   }
 
   // Restore page from initial hash or default to home
-  const initialHash = (window.location.hash || "").replace(/^#/, "");
+  const initialHash = (window.location.hash || "").replace(/^#/, "").split("?")[0];
   if (initialHash && VALID_PAGES.has(initialHash)) {
     showPage(initialHash, false);
   } else {

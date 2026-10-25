@@ -135,6 +135,36 @@ async function runMigration() {
       console.log("  = Column `users.registration_rejection_reason` already exists");
     }
 
+    if (!(await columnExists("users", "password_reset_token_hash"))) {
+      await conn.execute("ALTER TABLE `users` ADD COLUMN `password_reset_token_hash` VARCHAR(64) NULL AFTER `password_hash`");
+      console.log("  + Added column `users.password_reset_token_hash`");
+    } else {
+      console.log("  = Column `users.password_reset_token_hash` already exists");
+    }
+
+    if (!(await columnExists("users", "password_reset_expires_at"))) {
+      await conn.execute("ALTER TABLE `users` ADD COLUMN `password_reset_expires_at` TIMESTAMP NULL AFTER `password_reset_token_hash`");
+      console.log("  + Added column `users.password_reset_expires_at`");
+    } else {
+      console.log("  = Column `users.password_reset_expires_at` already exists");
+    }
+
+    if (!(await columnExists("users", "password_reset_used_at"))) {
+      await conn.execute("ALTER TABLE `users` ADD COLUMN `password_reset_used_at` TIMESTAMP NULL AFTER `password_reset_expires_at`");
+      console.log("  + Added column `users.password_reset_used_at`");
+    } else {
+      console.log("  = Column `users.password_reset_used_at` already exists");
+    }
+
+    if (!(await indexExists("users", "idx_reset_token_hash"))) {
+      try {
+        await conn.execute("ALTER TABLE `users` ADD INDEX `idx_reset_token_hash` (`password_reset_token_hash`)");
+        console.log("  + Added index `idx_reset_token_hash` to `users`");
+      } catch (e) {
+        console.warn("  = Note on idx_reset_token_hash:", e.message);
+      }
+    }
+
     // 2. UPGRADE SESSIONS TABLE
     console.log("\n[STEP 2] Upgrading `sessions` table...");
     if (!(await columnExists("sessions", "expires_at"))) {

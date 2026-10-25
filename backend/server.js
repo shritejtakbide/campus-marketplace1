@@ -5,9 +5,8 @@ const crypto = require("crypto");
 const bcrypt = require("bcrypt");
 const mysql = require("mysql2/promise");
 
-// Load .env from project root or current working directory
-require("dotenv").config({ path: path.resolve(__dirname, "..", ".env") });
-require("dotenv").config();
+// Ensure .env is loaded from explicit project path across all working directories
+require("./env_loader.js");
 
 /* =========================
    CONFIGURATION
@@ -20,11 +19,22 @@ const SESSION_LIFETIME_HOURS = Number(process.env.SESSION_LIFETIME_HOURS || 24);
 const OTP_EXPIRY_MINUTES = Number(process.env.OTP_EXPIRY_MINUTES || 10);
 const OTP_RESEND_COOLDOWN_SECONDS = Number(process.env.OTP_RESEND_COOLDOWN_SECONDS || 60);
 
+// Phase 5: Authentication Security & Rate Limiting Configurations
+const LOGIN_RATE_LIMIT_MAX_ATTEMPTS = Number(process.env.LOGIN_RATE_LIMIT_MAX_ATTEMPTS || 5);
+const LOGIN_RATE_LIMIT_WINDOW_MINUTES = Number(process.env.LOGIN_RATE_LIMIT_WINDOW_MINUTES || 15);
+const PASSWORD_RESET_EXPIRY_MINUTES = Number(process.env.PASSWORD_RESET_EXPIRY_MINUTES || 30);
+const RECOVERY_RATE_LIMIT_MAX_ATTEMPTS = Number(process.env.RECOVERY_RATE_LIMIT_MAX_ATTEMPTS || 5);
+const RECOVERY_RATE_LIMIT_WINDOW_MINUTES = Number(process.env.RECOVERY_RATE_LIMIT_WINDOW_MINUTES || 15);
+const RESET_RATE_LIMIT_MAX_ATTEMPTS = Number(process.env.RESET_RATE_LIMIT_MAX_ATTEMPTS || 5);
+const RESET_RATE_LIMIT_WINDOW_MINUTES = Number(process.env.RESET_RATE_LIMIT_WINDOW_MINUTES || 15);
+
 const {
   isSmtpConfigured,
   generateOtp,
   hashOtp,
-  sendOTPEmail
+  sendOTPEmail,
+  buildPasswordResetEmailHtml,
+  sendPasswordResetEmail
 } = require("./email_service.js");
 
 const FRONTEND_DIR = process.env.FRONTEND_DIR ||
@@ -103,6 +113,116 @@ function sendText(
   });
 
   res.end(text);
+}
+
+function getClientIp(req) {
+  const forwarded = req.headers["x-forwarded-for"];
+  if (forwarded && typeof forwarded === "string") {
+    const first = forwarded.split(",")[0].trim();
+    if (first) return first;
+  }
+  return req.socket.remoteAddress || "127.0.0.1";
+}
+
+function getAppBaseUrl() {
+  const configured = process.env.APP_BASE_URL || process.env.FRONTEND_URL;
+  if (configured && typeof configured === "string") {
+    const trimmed = configured.trim().replace(/\/+$/, "");
+    try {
+      const u = new URL(trimmed);
+      if (u.protocol === "http:" || u.protocol === "https:") {
+        return trimmed;
+      }
+    } catch {
+      console.warn("[AUTH] Invalid APP_BASE_URL configured, falling back to default.");
+    }
+  }
+
+  const host = process.env.HOST || "localhost";
+  const port = Number(process.env.PORT || 3000);
+  return `http://${host}:${port}`;
+}
+
+async function checkRateLimit(dbPool, rateKey, maxAttempts) {
+  try {
+    const [rows] = await dbPool.execute(
+      `SELECT attempts, 
+              UNIX_TIMESTAMP(expires_at) - UNIX_TIMESTAMP(NOW()) AS seconds_remaining
+       FROM email_otps
+       WHERE email = ? AND otp_hash = 'rate_limit' AND expires_at > NOW()
+       ORDER BY id DESC
+       LIMIT 1`,
+      [rateKey]
+    );
+
+    if (rows.length > 0 && rows[0].attempts >= maxAttempts) {
+      return {
+        limited: true,
+        attempts: rows[0].attempts,
+        secondsRemaining: Math.max(1, Number(rows[0].seconds_remaining) || 1)
+      };
+    }
+
+    return {
+      limited: false,
+      attempts: rows.length > 0 ? rows[0].attempts : 0
+    };
+  } catch (err) {
+    console.error("[RATE-LIMIT] Error checking rate limit:", err.message);
+    return { limited: false, attempts: 0, secondsRemaining: 0 };
+  }
+}
+
+async function recordFailedAttempt(dbPool, rateKey, windowMinutes) {
+  try {
+    const [rows] = await dbPool.execute(
+      `SELECT id, attempts FROM email_otps
+       WHERE email = ? AND otp_hash = 'rate_limit' AND expires_at > NOW()
+       LIMIT 1`,
+      [rateKey]
+    );
+
+    if (rows.length > 0) {
+      await dbPool.execute(
+        `UPDATE email_otps SET attempts = attempts + 1 WHERE id = ?`,
+        [rows[0].id]
+      );
+    } else {
+      // Clean up any stale/expired record for this key first
+      await dbPool.execute(
+        `DELETE FROM email_otps WHERE email = ? AND otp_hash = 'rate_limit'`,
+        [rateKey]
+      );
+      await dbPool.execute(
+        `INSERT INTO email_otps (email, otp_hash, attempts, expires_at, created_at)
+         VALUES (?, 'rate_limit', 1, DATE_ADD(NOW(), INTERVAL ? MINUTE), NOW())`,
+        [rateKey, windowMinutes]
+      );
+    }
+  } catch (err) {
+    console.error("[RATE-LIMIT] Error recording failed attempt:", err.message);
+  }
+}
+
+async function resetRateLimit(dbPool, rateKey) {
+  try {
+    await dbPool.execute(
+      `DELETE FROM email_otps WHERE email = ? AND otp_hash = 'rate_limit'`,
+      [rateKey]
+    );
+  } catch (err) {
+    console.error("[RATE-LIMIT] Error resetting rate limit:", err.message);
+  }
+}
+
+async function cleanupExpiredRateLimits(dbPool) {
+  try {
+    await dbPool.execute(
+      `DELETE FROM email_otps WHERE otp_hash = 'rate_limit' AND expires_at <= NOW()`
+    );
+  } catch (err) {
+    console.error("[RATE-LIMIT] Error cleaning up expired limits:", err.message);
+  }
 }
 
 function getToken(req) {
@@ -546,6 +666,19 @@ async function initializeDatabase() {
   try {
     await pool.execute(`ALTER TABLE users ADD COLUMN registration_rejection_reason VARCHAR(255) NULL AFTER registration_reviewed_at`);
   } catch (e) { if (e.errno !== 1060) console.warn("User column migration warning:", e.message); }
+
+  try {
+    await pool.execute(`ALTER TABLE users ADD COLUMN password_reset_token_hash VARCHAR(64) NULL AFTER password_hash`);
+  } catch (e) { if (e.errno !== 1060) console.warn("User column migration warning:", e.message); }
+  try {
+    await pool.execute(`ALTER TABLE users ADD COLUMN password_reset_expires_at TIMESTAMP NULL AFTER password_reset_token_hash`);
+  } catch (e) { if (e.errno !== 1060) console.warn("User column migration warning:", e.message); }
+  try {
+    await pool.execute(`ALTER TABLE users ADD COLUMN password_reset_used_at TIMESTAMP NULL AFTER password_reset_expires_at`);
+  } catch (e) { if (e.errno !== 1060) console.warn("User column migration warning:", e.message); }
+  try {
+    await pool.execute(`ALTER TABLE users ADD INDEX idx_reset_token_hash (password_reset_token_hash)`);
+  } catch (e) { if (e.errno !== 1061) console.warn("User index migration warning:", e.message); }
 
   /*
     Add document_data to verification table.
@@ -1311,6 +1444,20 @@ async function handleAPI(req, res) {
       );
     }
 
+    const clientIp = getClientIp(req);
+    const loginRateKey = `rl:login:${email}::${clientIp}`;
+
+    // Rate limiting check
+    const rateCheck = await checkRateLimit(pool, loginRateKey, LOGIN_RATE_LIMIT_MAX_ATTEMPTS);
+    if (rateCheck.limited) {
+      res.setHeader("Retry-After", String(rateCheck.secondsRemaining));
+      return sendJSON(res, 429, {
+        success: false,
+        message: `Too many failed login attempts. Please try again in ${Math.ceil(rateCheck.secondsRemaining / 60)} minutes.`,
+        retryAfter: rateCheck.secondsRemaining
+      });
+    }
+
     const [rows] =
       await pool.execute(
         `
@@ -1332,6 +1479,7 @@ async function handleAPI(req, res) {
       );
 
     if (rows.length === 0) {
+      await recordFailedAttempt(pool, loginRateKey, LOGIN_RATE_LIMIT_WINDOW_MINUTES);
       return sendJSON(
         res,
         401,
@@ -1353,6 +1501,7 @@ async function handleAPI(req, res) {
       );
 
     if (!isValidPassword) {
+      await recordFailedAttempt(pool, loginRateKey, LOGIN_RATE_LIMIT_WINDOW_MINUTES);
       return sendJSON(
         res,
         401,
@@ -1363,6 +1512,9 @@ async function handleAPI(req, res) {
         }
       );
     }
+
+    // Reset failed login counter upon successful authentication
+    await resetRateLimit(pool, loginRateKey);
 
     /*
       Transparent legacy-hash migration:
@@ -1474,6 +1626,278 @@ async function handleAPI(req, res) {
           "Logged out successfully."
       }
     );
+  }
+
+  /* =========================
+     FORGOT PASSWORD (PHASE 5)
+  ========================= */
+
+  if (
+    req.method === "POST" &&
+    pathname === "/api/auth/forgot-password"
+  ) {
+    const clientIp = getClientIp(req);
+    const recoveryRateKey = `rl:recovery:${clientIp}`;
+
+    // Rate limiting recovery requests
+    const rateCheck = await checkRateLimit(pool, recoveryRateKey, RECOVERY_RATE_LIMIT_MAX_ATTEMPTS);
+    if (rateCheck.limited) {
+      res.setHeader("Retry-After", String(rateCheck.secondsRemaining));
+      return sendJSON(res, 429, {
+        success: false,
+        message: "Too many password recovery requests. Please try again later.",
+        retryAfter: rateCheck.secondsRemaining
+      });
+    }
+
+    const body = await parseBody(req);
+    const email = String(body.email || "").trim().toLowerCase();
+
+    if (!email || !email.includes("@")) {
+      return sendJSON(res, 400, {
+        success: false,
+        message: "A valid campus email address is required."
+      });
+    }
+
+    // Record recovery attempt for rate limiting
+    await recordFailedAttempt(pool, recoveryRateKey, RECOVERY_RATE_LIMIT_WINDOW_MINUTES);
+
+    // Generic response regardless of whether email exists or not (anti-enumeration)
+    const GENERIC_RESPONSE_MSG = "If that email address is registered, password reset instructions have been sent.";
+
+    const [rows] = await pool.execute(
+      "SELECT id, name, email FROM users WHERE email = ? LIMIT 1",
+      [email]
+    );
+
+    if (rows.length === 0) {
+      return sendJSON(res, 200, {
+        success: true,
+        message: GENERIC_RESPONSE_MSG
+      });
+    }
+
+    const user = rows[0];
+
+    // Generate cryptographic random reset token (32 bytes hex = 64 characters)
+    const rawToken = crypto.randomBytes(32).toString("hex");
+    const tokenHash = crypto.createHash("sha256").update(rawToken).digest("hex");
+
+    // Atomically persist token hash and expiry on user row
+    await pool.execute(
+      `UPDATE users
+       SET password_reset_token_hash = ?,
+           password_reset_expires_at = DATE_ADD(NOW(), INTERVAL ? MINUTE),
+           password_reset_used_at = NULL,
+           updated_at = NOW()
+       WHERE id = ?`,
+      [tokenHash, PASSWORD_RESET_EXPIRY_MINUTES, user.id]
+    );
+
+    // Build reset URL using validated application base URL (never untrusted host header)
+    const baseUrl = getAppBaseUrl();
+    const resetUrl = `${baseUrl}/#reset-password?token=${rawToken}`;
+
+    // Dispatch email safely without leaking sensitive information
+    try {
+      await sendPasswordResetEmail(user.email, resetUrl, PASSWORD_RESET_EXPIRY_MINUTES);
+    } catch (err) {
+      // Never log raw tokens, reset URLs, passwords, or SMTP credentials
+      console.error("[AUTH] Failed to send password reset email:", err.message);
+    }
+
+    return sendJSON(res, 200, {
+      success: true,
+      message: GENERIC_RESPONSE_MSG
+    });
+  }
+
+  /* =========================
+     VERIFY RESET TOKEN (PHASE 5)
+  ========================= */
+
+  if (
+    req.method === "GET" &&
+    pathname === "/api/auth/verify-reset-token"
+  ) {
+    const rawToken = String(url.searchParams.get("token") || "").trim();
+
+    if (!rawToken) {
+      return sendJSON(res, 400, {
+        success: false,
+        valid: false,
+        message: "Reset token is required."
+      });
+    }
+
+    const tokenHash = crypto.createHash("sha256").update(rawToken).digest("hex");
+
+    const [rows] = await pool.execute(
+      `SELECT id, password_reset_used_at, 
+              UNIX_TIMESTAMP(password_reset_expires_at) - UNIX_TIMESTAMP(NOW()) AS seconds_remaining
+       FROM users
+       WHERE password_reset_token_hash = ?
+       LIMIT 1`,
+      [tokenHash]
+    );
+
+    if (rows.length === 0) {
+      return sendJSON(res, 400, {
+        success: false,
+        valid: false,
+        reason: "invalid",
+        message: "Invalid or expired password reset token."
+      });
+    }
+
+    const record = rows[0];
+
+    if (record.password_reset_used_at !== null) {
+      return sendJSON(res, 400, {
+        success: false,
+        valid: false,
+        reason: "used",
+        message: "This password reset token has already been used."
+      });
+    }
+
+    if (Number(record.seconds_remaining) <= 0) {
+      return sendJSON(res, 400, {
+        success: false,
+        valid: false,
+        reason: "expired",
+        message: "This password reset token has expired."
+      });
+    }
+
+    return sendJSON(res, 200, {
+      success: true,
+      valid: true,
+      message: "Reset token is valid."
+    });
+  }
+
+  /* =========================
+     RESET PASSWORD (PHASE 5)
+  ========================= */
+
+  if (
+    req.method === "POST" &&
+    pathname === "/api/auth/reset-password"
+  ) {
+    const clientIp = getClientIp(req);
+    const resetRateKey = `rl:reset:${clientIp}`;
+
+    // Rate limiting reset attempts
+    const rateCheck = await checkRateLimit(pool, resetRateKey, RESET_RATE_LIMIT_MAX_ATTEMPTS);
+    if (rateCheck.limited) {
+      res.setHeader("Retry-After", String(rateCheck.secondsRemaining));
+      return sendJSON(res, 429, {
+        success: false,
+        message: "Too many password reset attempts. Please try again later.",
+        retryAfter: rateCheck.secondsRemaining
+      });
+    }
+
+    const body = await parseBody(req);
+    const rawToken = String(body.token || "").trim();
+    const newPassword = String(body.newPassword || body.password || "");
+
+    if (!rawToken) {
+      return sendJSON(res, 400, {
+        success: false,
+        message: "Reset token is required."
+      });
+    }
+
+    if (!newPassword || newPassword.length < 6) {
+      return sendJSON(res, 400, {
+        success: false,
+        message: "Password must be at least 6 characters long."
+      });
+    }
+
+    const tokenHash = crypto.createHash("sha256").update(rawToken).digest("hex");
+
+    // Atomically validate and consume token within a transaction with row lock
+    const conn = await pool.getConnection();
+    try {
+      await conn.beginTransaction();
+
+      const [users] = await conn.execute(
+        `SELECT id, email, password_reset_token_hash, password_reset_expires_at, password_reset_used_at,
+                UNIX_TIMESTAMP(password_reset_expires_at) - UNIX_TIMESTAMP(NOW()) AS seconds_remaining
+         FROM users
+         WHERE password_reset_token_hash = ?
+         FOR UPDATE`,
+        [tokenHash]
+      );
+
+      if (users.length === 0) {
+        await conn.rollback();
+        await recordFailedAttempt(pool, resetRateKey, RESET_RATE_LIMIT_WINDOW_MINUTES);
+        return sendJSON(res, 400, {
+          success: false,
+          message: "Invalid or expired password reset token."
+        });
+      }
+
+      const userRecord = users[0];
+
+      if (userRecord.password_reset_used_at !== null) {
+        await conn.rollback();
+        await recordFailedAttempt(pool, resetRateKey, RESET_RATE_LIMIT_WINDOW_MINUTES);
+        return sendJSON(res, 400, {
+          success: false,
+          message: "This password reset token has already been used."
+        });
+      }
+
+      if (Number(userRecord.seconds_remaining) <= 0) {
+        await conn.rollback();
+        await recordFailedAttempt(pool, resetRateKey, RESET_RATE_LIMIT_WINDOW_MINUTES);
+        return sendJSON(res, 400, {
+          success: false,
+          message: "This password reset token has expired."
+        });
+      }
+
+      // Hash new password using bcrypt with standard work factor
+      const newHash = await hashPassword(newPassword);
+
+      // Atomically update password, mark token as used, and clear token hash
+      await conn.execute(
+        `UPDATE users
+         SET password_hash = ?,
+             password_reset_used_at = NOW(),
+             password_reset_token_hash = NULL,
+             updated_at = NOW()
+         WHERE id = ?`,
+        [newHash, userRecord.id]
+      );
+
+      // Invalidate all existing active sessions for this user
+      await conn.execute(
+        "DELETE FROM sessions WHERE user_id = ?",
+        [userRecord.id]
+      );
+
+      await conn.commit();
+
+      // Reset any failure counter for this IP
+      await resetRateLimit(pool, resetRateKey);
+
+      return sendJSON(res, 200, {
+        success: true,
+        message: "Password has been reset successfully. Please login with your new password."
+      });
+    } catch (err) {
+      await conn.rollback();
+      throw err;
+    } finally {
+      conn.release();
+    }
   }
 
   /* =========================
@@ -3798,3 +4222,12 @@ if (!process.env.VERCEL && !process.env.TEST_MODE && (require.main === module ||
 
 module.exports = server;
 module.exports.startLocalServer = startLocalServer;
+module.exports.checkRateLimit = checkRateLimit;
+module.exports.recordFailedAttempt = recordFailedAttempt;
+module.exports.resetRateLimit = resetRateLimit;
+module.exports.cleanupExpiredRateLimits = cleanupExpiredRateLimits;
+module.exports.getAppBaseUrl = getAppBaseUrl;
+module.exports.getClientIp = getClientIp;
+module.exports.hashPassword = hashPassword;
+module.exports.verifyPassword = verifyPassword;
+module.exports.pool = pool;

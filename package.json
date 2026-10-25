@@ -15,7 +15,11 @@
     "test:phase5": "node database/test_phase5.js",
     "test:phase6": "node database/test_phase6.js",
     "test:phase7a": "node database/test_phase7a.js",
-    "test:all": "node database/test_phase2.js && node database/test_phase3.js && node database/test_phase4.js && node database/test_phase5.js && node database/test_phase6.js && node database/test_phase7a.js"
+    "test:auth-security": "node database/test_auth_security.js",
+    "test:security": "node database/test_auth_security.js",
+    "test:all": "node database/test_phase2.js && node database/test_phase3.js && node database/test_phase4.js && node database/test_phase5.js && node database/test_phase6.js && node database/test_phase7a.js && node database/test_auth_security.js",
+    "verify:smtp": "node backend/verify_smtp.js",
+    "check:smtp": "node backend/verify_smtp.js"
   },
   "engines": {
     "node": ">=18"

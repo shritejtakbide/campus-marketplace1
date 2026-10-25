@@ -18,6 +18,9 @@ CREATE TABLE IF NOT EXISTS `users` (
   `name` VARCHAR(100) NOT NULL,
   `email` VARCHAR(255) NOT NULL UNIQUE,
   `password_hash` VARCHAR(255) NOT NULL,
+  `password_reset_token_hash` VARCHAR(64) NULL,
+  `password_reset_expires_at` TIMESTAMP NULL,
+  `password_reset_used_at` TIMESTAMP NULL,
   `role` ENUM('student', 'admin') NOT NULL DEFAULT 'student',
   `email_verified` BOOLEAN NOT NULL DEFAULT 0,
   `registration_status` ENUM('pending', 'approved', 'rejected') NOT NULL DEFAULT 'pending',
@@ -32,7 +35,8 @@ CREATE TABLE IF NOT EXISTS `users` (
   INDEX `idx_user_email` (`email`),
   INDEX `idx_user_role` (`role`),
   INDEX `idx_user_reg_status` (`registration_status`),
-  INDEX `idx_user_verif_status` (`student_verification_status`)
+  INDEX `idx_user_verif_status` (`student_verification_status`),
+  INDEX `idx_user_reset_token` (`password_reset_token_hash`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- --------------------------------------------------------------------

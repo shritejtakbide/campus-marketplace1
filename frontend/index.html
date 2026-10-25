@@ -1012,9 +1012,14 @@
 
                 </div>
 
+                <div class="form-row-link" id="forgotPasswordRow" style="text-align: right; margin-top: -6px; margin-bottom: 14px;">
+                    <button type="button" class="text-button small-link" id="forgotPasswordLink" onclick="openForgotPasswordModal()" style="font-size: 13px; color: #38bdf8;">Forgot password?</button>
+                </div>
+
 
                 <button
                     type="submit"
+                    id="loginSubmitBtn"
                     class="primary-button full-button">
 
                     Login
@@ -1033,6 +1038,102 @@
             <div class="auth-switch">
                 <span id="authSwitchText">New student?</span>
                 <button type="button" class="text-button" id="authSwitchButton">Create account</button>
+            </div>
+
+        </div>
+
+    </div>
+
+</section>
+
+
+<!-- ==================================================
+     RESET PASSWORD
+================================================== -->
+
+<section
+    id="reset-password"
+    class="page">
+
+    <div class="login-wrapper">
+
+        <div class="login-card glass">
+
+            <div class="login-icon">
+                🔒
+            </div>
+
+            <h1>
+                Create New Password
+            </h1>
+
+            <p id="reset-card-subtitle">
+                Enter your new secure password below to regain account access.
+            </p>
+
+            <div id="resetTokenStateError" class="auth-alert error hidden" role="alert" style="margin-bottom: 18px;"></div>
+
+            <form id="resetPasswordForm">
+
+                <div class="form-group">
+
+                    <label for="resetNewPassword">
+                        New Password
+                    </label>
+
+                    <input
+                        id="resetNewPassword"
+                        type="password"
+                        placeholder="At least 6 characters"
+                        minlength="6"
+                        required
+                        autocomplete="new-password"
+                    >
+                    <small class="field-hint" style="display: block; margin-top: 5px; font-size: 12px; color: #94a3b8;">Must be at least 6 characters</small>
+
+                </div>
+
+
+                <div class="form-group">
+
+                    <label for="resetConfirmPassword">
+                        Confirm New Password
+                    </label>
+
+                    <input
+                        id="resetConfirmPassword"
+                        type="password"
+                        placeholder="Confirm your new password"
+                        minlength="6"
+                        required
+                        autocomplete="new-password"
+                    >
+
+                </div>
+
+
+                <button
+                    type="submit"
+                    id="resetPasswordSubmitBtn"
+                    class="primary-button full-button">
+
+                    Update Password
+
+                </button>
+
+            </form>
+
+
+            <div
+                id="resetPasswordMessage"
+                class="form-message"
+                role="alert"
+                aria-live="polite">
+
+            </div>
+
+            <div class="auth-switch">
+                <button type="button" class="text-button" onclick="showPage('login')">Return to Login</button>
             </div>
 
         </div>
@@ -1209,6 +1310,39 @@
       <span id="otpCooldownText" style="color: #64748b;">Didn't receive code?</span>
       <button type="button" class="text-button" id="resendOtpBtn" onclick="handleResendOtp()" style="color: #38bdf8; cursor: pointer;">
         Resend Code
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- FORGOT PASSWORD MODAL -->
+<div id="forgotPasswordModal" class="market-modal hidden" role="dialog" aria-modal="true" aria-label="Forgot Password" onclick="closeForgotPasswordModal(event)">
+  <div class="market-modal-card glass" onclick="event.stopPropagation()" style="max-width: 480px; text-align: left;">
+    <button class="modal-close" onclick="closeForgotPasswordModal()">×</button>
+    <div style="font-size: 38px; margin-bottom: 12px; text-align: center;">🔑</div>
+    <h2 style="margin: 0 0 8px 0; font-size: 24px; text-align: center;">Reset Password</h2>
+    <p id="forgotPasswordSubtitle" style="color: #94a3b8; font-size: 14px; margin-bottom: 22px; text-align: center;">
+      Enter your registered campus email to receive a secure recovery link.
+    </p>
+    <form id="forgotPasswordForm">
+      <div class="form-group" style="margin-bottom: 18px;">
+        <label for="forgotEmail">Campus Email</label>
+        <input
+          id="forgotEmail"
+          type="email"
+          placeholder="student@campus.local"
+          required
+          autocomplete="email"
+        >
+      </div>
+      <button type="submit" class="primary-button full-button" id="forgotPasswordSubmitBtn">
+        Send Recovery Link
+      </button>
+    </form>
+    <div id="forgotPasswordMessage" class="form-message" role="alert" aria-live="polite" style="margin-top: 14px;"></div>
+    <div style="margin-top: 20px; text-align: center; border-top: 1px solid rgba(255, 255, 255, 0.08); padding-top: 14px;">
+      <button type="button" class="text-button" onclick="closeForgotPasswordModal()" style="color: #94a3b8;">
+        Return to Login
       </button>
     </div>
   </div>
