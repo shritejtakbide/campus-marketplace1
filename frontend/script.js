@@ -12,6 +12,8 @@ const KEY = {
 };
 
 let products = [];
+let productsLoading = true;
+let productsLoadError = null;
 let myListings = [];
 let sessionUser = null;
 let currentMyListingsTab = "all";
@@ -114,6 +116,7 @@ function showPage(name, updateHash = true) {
     }
   }
 
+  if (name === "home") renderHomeRecentListings();
   if (name === "products") loadProducts();
   if (name === "my-listings") loadMyListings();
   if (name === "verification") loadVerificationStatus();
@@ -133,13 +136,144 @@ window.addEventListener("keydown", (e) => {
   }
 });
 
+function executeHeroSearch() {
+  const heroInput = document.getElementById("heroSearchInput");
+  const q = heroInput ? heroInput.value.trim() : "";
+  const mainInput = document.getElementById("searchInput");
+  if (mainInput) mainInput.value = q;
+  const sel = document.getElementById("categoryFilter");
+  if (sel) sel.value = "all";
+  showPage("products");
+  filterProducts();
+}
+
+function filterByCategoryFromHome(category) {
+  const mainInput = document.getElementById("searchInput");
+  if (mainInput) mainInput.value = "";
+  const sel = document.getElementById("categoryFilter");
+  if (sel) sel.value = category;
+  showPage("products");
+  filterProducts();
+}
+
+function selectCategoryChip(cat) {
+  const sel = document.getElementById("categoryFilter");
+  if (sel) {
+    sel.value = cat;
+    filterProducts();
+  }
+}
+
+function clearCatalogSearch() {
+  const mainInput = document.getElementById("searchInput");
+  if (mainInput) {
+    mainInput.value = "";
+    mainInput.focus();
+  }
+  filterProducts();
+}
+
+function resetCatalogFilters() {
+  const mainInput = document.getElementById("searchInput");
+  if (mainInput) mainInput.value = "";
+  const sel = document.getElementById("categoryFilter");
+  if (sel) sel.value = "all";
+  const sort = document.getElementById("sortBy");
+  if (sort) sort.value = "newest";
+  filterProducts();
+}
+
+function renderHomeRecentListings() {
+  const container = document.getElementById("homeRecentGrid");
+  if (!container) return;
+
+  if (productsLoading) {
+    container.innerHTML = `
+      <div class="empty-state glass" style="grid-column: 1 / -1; padding: 24px; text-align: center;">
+        <div class="admin-loading-spinner">⏳ Loading recent campus listings...</div>
+      </div>`;
+    return;
+  }
+
+  if (productsLoadError) {
+    container.innerHTML = `
+      <div class="empty-state glass" style="grid-column: 1 / -1; padding: 28px; text-align: center;">
+        <div style="font-size: 32px; margin-bottom: 8px;">⚠️</div>
+        <h4 style="margin-bottom: 6px; font-weight: 600;">Unable to load recent listings</h4>
+        <p style="color: var(--text-muted); font-size: 13.5px; margin-bottom: 14px;">${esc(productsLoadError)}</p>
+        <button class="outline-button small-button" onclick="loadProducts()">Try Again</button>
+      </div>`;
+    return;
+  }
+
+  const activeList = (products || []).filter(p => p.status !== "archived").slice(0, 4);
+  if (!activeList.length) {
+    container.innerHTML = `
+      <div class="empty-state glass" style="grid-column: 1 / -1; padding: 28px; text-align: center;">
+        <div style="font-size: 32px; margin-bottom: 8px;">🎒</div>
+        <h4 style="margin-bottom: 6px; font-weight: 600;">No listings yet</h4>
+        <p style="color: var(--text-muted); font-size: 13.5px; margin-bottom: 14px;">Be the first student to list a textbook or gadget!</p>
+        <button class="primary-button small-button" onclick="showPage('sell')">+ List an Item</button>
+      </div>`;
+    return;
+  }
+
+  container.innerHTML = "";
+  activeList.forEach(p => {
+    const isOwner = Boolean(
+      sessionUser && (
+        Number(sessionUser.id) === Number(p.sellerId || p.seller_id) ||
+        sessionUser.role === "admin"
+      )
+    );
+    const isSold = p.status === "sold";
+    const statusPill = isSold
+      ? '<span class="status-pill status-sold">Sold</span>'
+      : '<span class="status-pill status-active">Available</span>';
+
+    const card = document.createElement("article");
+    card.className = "product-card glass home-product-card";
+    card.innerHTML = `
+      <div class="product-image-container" onclick="openProductDetails('${esc(p.id)}',event)" style="cursor: pointer;">
+        <div class="product-image">${esc(p.icon || getCategoryIcon(p.category))}</div>
+        <div class="product-badge-overlay">${statusPill}</div>
+      </div>
+      <div class="product-meta-header">
+        <span class="product-category-badge">${esc(p.category || "General")}</span>
+        <span class="product-price-highlight">₹${Number(p.price).toLocaleString("en-IN")}</span>
+      </div>
+      <h3 class="product-title" onclick="openProductDetails('${esc(p.id)}',event)" style="cursor: pointer;" title="${esc(p.name)}">${esc(p.name)}</h3>
+      <div class="product-seller-row">
+        <span class="seller-name">👤 ${esc(p.sellerName || p.seller || "Student")}</span>
+        ${p.verified ? '<span class="verified-small">✓ Verified</span>' : '<span class="verified-small unverified">⚠ Unverified</span>'}
+      </div>
+      <div class="card-actions">
+        <button class="outline-button small-button" onclick="openProductDetails('${esc(p.id)}',event)">Details</button>
+        ${
+          isOwner
+            ? `<button class="outline-button small-button" onclick="openEditProductModal('${esc(p.id)}')">✏️ Edit</button>`
+            : isSold
+            ? `<button class="outline-button small-button" disabled style="opacity:0.6; cursor:not-allowed;">Sold</button>`
+            : `<button class="primary-button small-button" onclick="contactSeller('${esc(p.id)}',event)">Contact</button>`
+        }
+      </div>`;
+    container.appendChild(card);
+  });
+}
+
 async function loadProducts(){
+  productsLoading = true;
+  productsLoadError = null;
   try {
     const data = await api("/products");
     products = data.products || [];
-    filterProducts();
   } catch (err) {
-    showToast(err.message);
+    productsLoadError = err.message || "Failed to load products";
+    showToast(productsLoadError);
+  } finally {
+    productsLoading = false;
+    filterProducts();
+    renderHomeRecentListings();
   }
 }
 
@@ -149,7 +283,13 @@ function displayProducts(list = products){
   grid.innerHTML = "";
 
   if (!list.length) {
-    grid.innerHTML = `<div class="empty-state glass"><div>🔍</div><h3>No products found</h3><p>Try another search or category.</p></div>`;
+    grid.innerHTML = `
+      <div class="empty-state glass">
+        <div class="empty-state-icon">🔍</div>
+        <h3>No products found</h3>
+        <p>No listings matched your active search or category filters.</p>
+        <button class="outline-button small-button" style="margin-top: 14px;" onclick="resetCatalogFilters()">Reset All Filters</button>
+      </div>`;
     return;
   }
 
@@ -163,8 +303,8 @@ function displayProducts(list = products){
 
     const isSold = p.status === "sold";
     const statusPill = isSold
-      ? '<span class="status-pill status-sold" style="margin-left:6px;">Sold</span>'
-      : '';
+      ? '<span class="status-pill status-sold">Sold</span>'
+      : '<span class="status-pill status-active">Available</span>';
 
     let actionButtons = "";
     if (isOwner) {
@@ -189,15 +329,19 @@ function displayProducts(list = products){
     const card = document.createElement("article");
     card.className = "product-card glass";
     card.innerHTML = `
-      <div class="product-image">${esc(p.icon || getCategoryIcon(p.category))}</div>
-      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 6px;">
-        <span class="product-category">${esc(p.category || "General")}</span>
-        ${statusPill}
+      <div class="product-image-container" onclick="openProductDetails('${esc(p.id)}',event)" style="cursor: pointer;">
+        <div class="product-image">${esc(p.icon || getCategoryIcon(p.category))}</div>
+        <div class="product-badge-overlay">${statusPill}</div>
       </div>
-      <h3>${esc(p.name)}</h3>
-      <div class="product-price">₹${Number(p.price).toLocaleString("en-IN")}</div>
-      <div class="product-seller">Seller: ${esc(p.sellerName || p.seller || "Student")}</div>
-      <div>${p.verified ? '<span class="verified-small">✓ Verified Seller</span>' : '<span class="verified-small unverified">⚠ Not Verified</span>'}</div>
+      <div class="product-meta-header">
+        <span class="product-category-badge">${esc(p.category || "General")}</span>
+        <span class="product-price-highlight">₹${Number(p.price).toLocaleString("en-IN")}</span>
+      </div>
+      <h3 class="product-title" onclick="openProductDetails('${esc(p.id)}',event)" style="cursor: pointer;" title="${esc(p.name)}">${esc(p.name)}</h3>
+      <div class="product-seller-row">
+        <span class="seller-name">👤 ${esc(p.sellerName || p.seller || "Student")}</span>
+        ${p.verified ? '<span class="verified-small">✓ Verified Seller</span>' : '<span class="verified-small unverified">⚠ Unverified</span>'}
+      </div>
       <div class="card-actions">
         ${actionButtons}
       </div>`;
@@ -208,10 +352,36 @@ function displayProducts(list = products){
 function filterProducts(){
   const q = (document.getElementById("searchInput")?.value || "").trim().toLowerCase();
   const c = document.getElementById("categoryFilter")?.value || "all";
-  displayProducts(products.filter(p =>
+  const s = document.getElementById("sortBy")?.value || "newest";
+
+  const clearBtn = document.getElementById("clearSearchBtn");
+  if (clearBtn) clearBtn.classList.toggle("hidden", !q);
+
+  document.querySelectorAll(".category-chip").forEach(chip => {
+    chip.classList.toggle("active", chip.getAttribute("data-category") === c);
+  });
+
+  let filtered = products.filter(p =>
     `${p.name} ${p.category} ${p.sellerName || p.seller}`.toLowerCase().includes(q) &&
     (c === "all" || p.category === c)
-  ));
+  );
+
+  if (s === "price-asc") {
+    filtered.sort((a, b) => Number(a.price) - Number(b.price));
+  } else if (s === "price-desc") {
+    filtered.sort((a, b) => Number(b.price) - Number(a.price));
+  } else if (s === "name-asc") {
+    filtered.sort((a, b) => (a.name || "").localeCompare(b.name || ""));
+  } else {
+    filtered.sort((a, b) => Number(b.id || 0) - Number(a.id || 0));
+  }
+
+  const countEl = document.getElementById("catalogResultCount");
+  if (countEl) {
+    countEl.textContent = `Showing ${filtered.length} ${filtered.length === 1 ? "listing" : "listings"}`;
+  }
+
+  displayProducts(filtered);
 }
 
 async function openProductDetails(id, event){
@@ -628,7 +798,10 @@ async function updateAuthButton(){
     if(adminBtn) adminBtn.classList.add("hidden");
     if(myListingsBtn) myListingsBtn.classList.add("hidden");
     if(banner) banner.classList.add("hidden");
-    if(products && products.length > 0) filterProducts();
+    if(products && products.length > 0) {
+      filterProducts();
+      renderHomeRecentListings();
+    }
     return;
   }
 
@@ -681,7 +854,10 @@ async function updateAuthButton(){
         }
       }
     }
-    if(products && products.length > 0) filterProducts();
+    if(products && products.length > 0) {
+      filterProducts();
+      renderHomeRecentListings();
+    }
   } catch {
     sessionUser = null;
     if(profileBadge) {
@@ -692,7 +868,10 @@ async function updateAuthButton(){
     if(adminBtn) adminBtn.classList.add("hidden");
     if(myListingsBtn) myListingsBtn.classList.add("hidden");
     if(banner) banner.classList.add("hidden");
-    if(products && products.length > 0) filterProducts();
+    if(products && products.length > 0) {
+      filterProducts();
+      renderHomeRecentListings();
+    }
   }
 }
 

@@ -122,41 +122,62 @@
     id="home"
     class="page active">
 
+    <!-- HERO SECTION -->
     <div class="home-container">
 
         <div class="home-content">
 
-            <div class="tag">
-                🎓 STUDENT MARKETPLACE
+            <div class="tag hero-badge">
+                🎓 VERIFIED CAMPUS NETWORK
             </div>
 
             <h1>
-                Buy & Sell
+                Buy &amp; Sell
                 <span>Within Your Campus</span>
             </h1>
 
-            <p>
-                A simple and trusted marketplace where
-                students can buy, sell and exchange
-                products with other students.
+            <p class="hero-subtext">
+                The trusted peer-to-peer student marketplace. Zero commission fees, verified university member badges, and instant on-campus handoffs.
             </p>
+
+            <!-- Prominent Hero Search Bar -->
+            <div class="hero-search-bar glass">
+                <span class="hero-search-icon" aria-hidden="true">🔍</span>
+                <input
+                    id="heroSearchInput"
+                    type="text"
+                    placeholder="Search books, laptops, lab coats, furniture..."
+                    aria-label="Search campus marketplace listings"
+                    onkeydown="if(event.key==='Enter'){event.preventDefault();executeHeroSearch();}"
+                >
+                <button
+                    class="primary-button hero-search-btn"
+                    onclick="executeHeroSearch()">
+                    Search
+                </button>
+            </div>
+
+            <!-- Quick Category Shortcuts -->
+            <div class="hero-quick-shortcuts" aria-label="Popular categories">
+                <span class="quick-label">Popular:</span>
+                <button class="shortcut-tag" onclick="filterByCategoryFromHome('Books')">📚 Books</button>
+                <button class="shortcut-tag" onclick="filterByCategoryFromHome('Electronics')">💻 Electronics</button>
+                <button class="shortcut-tag" onclick="filterByCategoryFromHome('Furniture')">🪑 Furniture</button>
+                <button class="shortcut-tag" onclick="filterByCategoryFromHome('Accessories')">🎒 Accessories</button>
+            </div>
 
             <div class="home-buttons">
 
                 <button
                     class="primary-button"
                     onclick="showPage('products')">
-
-                    Explore Marketplace
-
+                    Explore Marketplace →
                 </button>
 
                 <button
                     class="outline-button"
                     onclick="showPage('sell')">
-
-                    Sell Product
-
+                    + List an Item
                 </button>
 
             </div>
@@ -168,31 +189,31 @@
 
             <div class="preview-top">
 
-                <span>Campus Marketplace</span>
+                <span>🎓 Campus Market Feed</span>
 
-                <span class="status-dot">
-                    ●
+                <span class="status-indicator-badge">
+                    <span class="status-dot-small"></span> Active
                 </span>
 
             </div>
 
-            <div class="preview-product">
+            <div class="preview-product" onclick="filterByCategoryFromHome('Books')" style="cursor: pointer;">
 
                 <div class="preview-image">
                     📚
                 </div>
 
-                <div>
+                <div class="preview-details">
 
                     <h3>
-                        Engineering Books
+                        Engineering Mathematics (Vol. 2)
                     </h3>
 
                     <p>
-                        Used • Good Condition
+                        Semester 3 • Like New
                     </p>
 
-                    <strong>
+                    <strong class="preview-price">
                         ₹350
                     </strong>
 
@@ -201,23 +222,23 @@
             </div>
 
 
-            <div class="preview-product">
+            <div class="preview-product" onclick="filterByCategoryFromHome('Electronics')" style="cursor: pointer;">
 
                 <div class="preview-image">
                     🎧
                 </div>
 
-                <div>
+                <div class="preview-details">
 
                     <h3>
-                        Wireless Earphones
+                        Noise-Cancelling Headphones
                     </h3>
 
                     <p>
-                        Like New
+                        Wireless • 20h Battery
                     </p>
 
-                    <strong>
+                    <strong class="preview-price">
                         ₹800
                     </strong>
 
@@ -229,11 +250,11 @@
             <div class="preview-footer">
 
                 <span>
-                    ✓ Verified Students
+                    ✓ Verified Student Sellers
                 </span>
 
                 <span>
-                    🔒 Safe
+                    🔒 Secure Direct Chat
                 </span>
 
             </div>
@@ -243,61 +264,94 @@
     </div>
 
 
-    <!-- FEATURES -->
+    <!-- CATEGORY SHORTCUTS CARDS -->
+    <div class="home-section-header">
+        <div class="tag">📂 BROWSE BY CATEGORY</div>
+        <h2>Find What You Need This Semester</h2>
+        <p>Curated campus categories for quick student exchange</p>
+    </div>
+
+    <div class="category-cards-grid">
+        <div class="category-card glass" onclick="filterByCategoryFromHome('Books')">
+            <div class="cat-card-icon">📚</div>
+            <h3>Textbooks &amp; Notes</h3>
+            <p>Coursebooks, reference materials &amp; study guides</p>
+            <span class="cat-card-action">Browse Books →</span>
+        </div>
+
+        <div class="category-card glass" onclick="filterByCategoryFromHome('Electronics')">
+            <div class="cat-card-icon">💻</div>
+            <h3>Electronics &amp; Gadgets</h3>
+            <p>Laptops, chargers, calculators &amp; headphones</p>
+            <span class="cat-card-action">Browse Electronics →</span>
+        </div>
+
+        <div class="category-card glass" onclick="filterByCategoryFromHome('Furniture')">
+            <div class="cat-card-icon">🪑</div>
+            <h3>Dorm &amp; Furniture</h3>
+            <p>Desks, study lamps, chairs &amp; storage racks</p>
+            <span class="cat-card-action">Browse Furniture →</span>
+        </div>
+
+        <div class="category-card glass" onclick="filterByCategoryFromHome('Accessories')">
+            <div class="cat-card-icon">🎒</div>
+            <h3>Campus Accessories</h3>
+            <p>Backpacks, sports gear, lab coats &amp; stationery</p>
+            <span class="cat-card-action">Browse Accessories →</span>
+        </div>
+    </div>
+
+
+    <!-- RECENTLY ADDED LISTINGS SECTION (LIVE DATA) -->
+    <div class="home-section-header" style="margin-top: 50px;">
+        <div class="tag">⚡ LIVE FROM CAMPUS</div>
+        <div class="section-title-with-action">
+            <div>
+                <h2>Recently Added Listings</h2>
+                <p>Fresh items listed by students on campus</p>
+            </div>
+            <button class="outline-button small-button" onclick="showPage('products')">View All in Catalog →</button>
+        </div>
+    </div>
+
+    <div id="homeRecentGrid" class="home-recent-grid">
+        <div class="empty-state glass" style="grid-column: 1 / -1; padding: 24px; text-align: center;">
+            <div class="admin-loading-spinner">⏳ Loading recent campus listings...</div>
+        </div>
+    </div>
+
+
+    <!-- TRUST & FEATURES -->
+    <div class="home-section-header" style="margin-top: 50px;">
+        <div class="tag">🛡️ CAMPUS TRUST &amp; SAFETY</div>
+        <h2>Why Students Choose Campus Market</h2>
+        <p>Designed from the ground up for university student security</p>
+    </div>
 
     <div class="features">
 
         <div class="feature-card glass">
-
-            <div class="feature-icon">
-                🔐
-            </div>
-
-            <h3>
-                Verified Students
-            </h3>
-
-            <p>
-                Connect with verified
-                campus members.
-            </p>
-
+            <div class="feature-icon">🔐</div>
+            <h3>Verified Identity</h3>
+            <p>Only students with verified institutional email access can interact, list items, and communicate.</p>
         </div>
 
-
         <div class="feature-card glass">
-
-            <div class="feature-icon">
-                🛒
-            </div>
-
-            <h3>
-                Easy Buying
-            </h3>
-
-            <p>
-                Find useful products
-                around your campus.
-            </p>
-
+            <div class="feature-icon">💬</div>
+            <h3>Direct Chat</h3>
+            <p>Secure peer-to-peer buyer-seller messaging with preserved thread history and zero phone sharing.</p>
         </div>
 
+        <div class="feature-card glass">
+            <div class="feature-icon">🤝</div>
+            <h3>On-Campus Handoffs</h3>
+            <p>Meet safely on campus grounds, inspect physical condition before paying, and avoid shipping fees.</p>
+        </div>
 
         <div class="feature-card glass">
-
-            <div class="feature-icon">
-                💬
-            </div>
-
-            <h3>
-                Student Chat
-            </h3>
-
-            <p>
-                Chat directly with
-                sellers and buyers.
-            </p>
-
+            <div class="feature-icon">🏷️</div>
+            <h3>Seller Lifecycle</h3>
+            <p>Complete control to toggle availability, mark items sold, or soft-archive while preserving chats.</p>
         </div>
 
     </div>
@@ -316,7 +370,7 @@
     <div class="page-title">
 
         <div class="tag">
-            🛍️ MARKETPLACE
+            🛍️ MARKETPLACE CATALOG
         </div>
 
         <h1>
@@ -324,48 +378,83 @@
         </h1>
 
         <p>
-            Browse products listed by students.
+            Explore verified student listings across books, electronics, dorm essentials, and campus accessories.
         </p>
 
     </div>
 
 
-    <div class="search-container glass">
+    <!-- Search, Filters, and Sorting Controls -->
+    <div class="catalog-controls glass">
 
-        <input
-            id="searchInput"
-            type="text"
-            placeholder="🔍 Search products..."
-            oninput="filterProducts()"
-        >
+        <div class="catalog-search-row">
 
+            <div class="catalog-search-field">
+                <span class="search-icon-prefix" aria-hidden="true">🔍</span>
+                <input
+                    id="searchInput"
+                    type="text"
+                    placeholder="Search by title, category, seller or keyword..."
+                    aria-label="Search products"
+                    oninput="filterProducts()"
+                >
+                <button
+                    id="clearSearchBtn"
+                    class="clear-search-btn hidden"
+                    aria-label="Clear search query"
+                    onclick="clearCatalogSearch()">✕</button>
+            </div>
 
-        <select
-            id="categoryFilter"
-            onchange="filterProducts()">
+            <div class="catalog-filters-group">
 
-            <option value="all">
-                All Categories
-            </option>
+                <div class="filter-select-wrapper">
+                    <label for="categoryFilter" class="filter-label">Category</label>
+                    <select
+                        id="categoryFilter"
+                        class="catalog-select"
+                        onchange="filterProducts()">
+                        <option value="all">All Categories</option>
+                        <option value="Books">📚 Books</option>
+                        <option value="Electronics">💻 Electronics</option>
+                        <option value="Furniture">🪑 Furniture</option>
+                        <option value="Accessories">🎒 Accessories</option>
+                    </select>
+                </div>
 
-            <option value="Books">
-                Books
-            </option>
+                <div class="filter-select-wrapper">
+                    <label for="sortBy" class="filter-label">Sort By</label>
+                    <select
+                        id="sortBy"
+                        class="catalog-select"
+                        onchange="filterProducts()">
+                        <option value="newest">🕒 Recently Added</option>
+                        <option value="price-asc">💵 Price: Low to High</option>
+                        <option value="price-desc">💎 Price: High to Low</option>
+                        <option value="name-asc">🔤 Title: A to Z</option>
+                    </select>
+                </div>
 
-            <option value="Electronics">
-                Electronics
-            </option>
+            </div>
 
-            <option value="Furniture">
-                Furniture
-            </option>
+        </div>
 
-            <option value="Accessories">
-                Accessories
-            </option>
+        <!-- Quick Category Chips Bar -->
+        <div class="category-chips-bar" role="tablist" aria-label="Category shortcuts">
+            <button class="category-chip active" data-category="all" onclick="selectCategoryChip('all')">All Items</button>
+            <button class="category-chip" data-category="Books" onclick="selectCategoryChip('Books')">📚 Books</button>
+            <button class="category-chip" data-category="Electronics" onclick="selectCategoryChip('Electronics')">💻 Electronics</button>
+            <button class="category-chip" data-category="Furniture" onclick="selectCategoryChip('Furniture')">🪑 Furniture</button>
+            <button class="category-chip" data-category="Accessories" onclick="selectCategoryChip('Accessories')">🎒 Accessories</button>
+        </div>
 
-        </select>
+    </div>
 
+    <!-- Catalog Meta Bar -->
+    <div class="catalog-meta-bar">
+        <div id="catalogResultCount" class="catalog-result-count">Loading listings...</div>
+        <div class="catalog-live-badge">
+            <span class="status-dot-small"></span> Active Campus Catalog
+        </div>
     </div>
 
 
