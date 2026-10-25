@@ -5,5 +5,5 @@ echo ==========================================
 echo       CAMPUS MARKETPLACE - SERVER
 echo ==========================================
 echo.
-node server.js
+node server_backup.js
 pause

@@ -28,42 +28,78 @@
 
 <header class="navbar glass">
 
-    <div class="logo">
+    <div class="logo" onclick="showPage('home')" style="cursor: pointer;">
         <span class="logo-icon">🎓</span>
         Campus<span>Market</span>
     </div>
 
-    <nav class="nav-links">
+    <button
+        id="navToggleBtn"
+        class="nav-toggle"
+        aria-label="Toggle navigation menu"
+        onclick="toggleMobileNav()">
+        ☰
+    </button>
 
-        <button onclick="showPage('home')">
+    <nav id="mainNavLinks" class="nav-links">
+
+        <button class="nav-btn" data-page="home" onclick="showPage('home')">
             Home
         </button>
 
-        <button onclick="showPage('products')">
+        <button class="nav-btn" data-page="products" onclick="showPage('products')">
             Marketplace
         </button>
 
-        <button onclick="showPage('sell')">
+        <button class="nav-btn" data-page="sell" onclick="showPage('sell')">
             Sell
         </button>
 
-        <button onclick="showPage('verification')">
+        <button
+            id="myListingsNavBtn"
+            class="nav-btn hidden"
+            data-page="my-listings"
+            onclick="showPage('my-listings')">
+            🏷️ My Listings
+        </button>
+
+        <button class="nav-btn" data-page="verification" onclick="showPage('verification')">
             Verification
         </button>
 
-        <button onclick="showPage('chat')">
+        <button class="nav-btn" data-page="chat" onclick="showPage('chat')">
             Chat
+        </button>
+
+        <button
+            id="adminNavBtn"
+            class="nav-btn hidden"
+            data-page="admin"
+            onclick="showPage('admin')"
+            style="color: #60a5fa; border: 1px solid rgba(96, 165, 250, 0.4); background: rgba(96, 165, 250, 0.1);">
+            🛡️ Admin
         </button>
 
     </nav>
 
-    <button
-        class="login-button"
-        onclick="showPage('login')">
+    <div class="nav-actions">
+        <button
+            id="emailVerifyBadge"
+            class="login-button hidden"
+            style="background: rgba(245, 158, 11, 0.2); border: 1px solid rgba(245, 158, 11, 0.5); color: #fbbf24; margin-right: 6px; cursor: pointer;"
+            onclick="openOtpModal()">
+            ⚠️ Verify Email
+        </button>
 
-        Login
+        <span id="userProfileBadge" class="user-profile-pill hidden"></span>
 
-    </button>
+        <button
+            id="authButton"
+            class="login-button"
+            onclick="handleAuthButton()">
+            Login
+        </button>
+    </div>
 
 </header>
 
@@ -73,6 +109,14 @@
 ================================================== -->
 
 <main>
+
+<div id="accountStatusBanner" class="account-status-banner hidden">
+    <div id="accountStatusIcon" class="status-banner-icon">⏳</div>
+    <div class="status-banner-content">
+        <h4 id="accountStatusTitle">Registration Under Review</h4>
+        <p id="accountStatusMessage">Your account registration is currently pending administrator approval. Marketplace selling and chat are disabled until an administrator approves your account.</p>
+    </div>
+</div>
 
 <section
     id="home"
@@ -425,6 +469,8 @@
                     <input
                         id="productPrice"
                         type="number"
+                        min="0"
+                        step="1"
                         placeholder="₹ Enter price"
                         required
                     >
@@ -466,6 +512,50 @@
 
         </div>
 
+    </div>
+
+</section>
+
+
+<!-- ==================================================
+     MY LISTINGS (SELLER DASHBOARD)
+================================================== -->
+
+<section
+    id="my-listings"
+    class="page">
+
+    <div class="page-title">
+        <div class="tag">
+            🏷️ SELLER DASHBOARD
+        </div>
+        <h1>
+            My Product Listings
+        </h1>
+        <p>
+            Manage your inventory, update prices, toggle availability, and archive listings.
+        </p>
+    </div>
+
+    <div class="my-listings-tabs glass">
+        <button class="my-listings-tab active" data-status="all" onclick="setMyListingsTab('all', this)">
+            All Listings
+        </button>
+        <button class="my-listings-tab" data-status="active" onclick="setMyListingsTab('active', this)">
+            Active
+        </button>
+        <button class="my-listings-tab" data-status="sold" onclick="setMyListingsTab('sold', this)">
+            Sold
+        </button>
+        <button class="my-listings-tab" data-status="archived" onclick="setMyListingsTab('archived', this)">
+            Archived
+        </button>
+    </div>
+
+    <div
+        id="myListingsContainer"
+        class="product-grid">
+        <!-- Rendered by script.js -->
     </div>
 
 </section>
@@ -896,6 +986,7 @@
 
             </div>
 
+            <div id="chatThreadSelector" class="chat-thread-selector hidden"></div>
 
             <div
                 id="chatMessages"
@@ -938,6 +1029,50 @@
 
 </section>
 
+
+<!-- ==================================================
+     ADMIN DASHBOARD
+================================================== -->
+
+<section
+    id="admin"
+    class="page">
+
+    <div class="admin-dashboard-container glass">
+
+        <div class="admin-header">
+            <div>
+                <span class="tag">🛡️ ADMINISTRATOR PORTAL</span>
+                <h2>Student Registration Approvals</h2>
+                <p>Review, authorize, or reject student account registrations.</p>
+            </div>
+            <div class="admin-stats-bar">
+                <span id="adminPendingCount" class="admin-stat-pill">Pending: 0</span>
+                <button class="outline-button small-button" onclick="loadAdminRegistrations()">🔄 Refresh</button>
+            </div>
+        </div>
+
+        <div class="admin-tabs">
+            <button class="admin-tab active" data-status="pending" onclick="setAdminTab('pending', this)">Pending Review</button>
+            <button class="admin-tab" data-status="approved" onclick="setAdminTab('approved', this)">Approved</button>
+            <button class="admin-tab" data-status="rejected" onclick="setAdminTab('rejected', this)">Rejected</button>
+            <button class="admin-tab" data-status="all" onclick="setAdminTab('all', this)">All Accounts</button>
+        </div>
+
+        <div id="adminRegistrationsList" class="admin-registrations-list">
+            <!-- Rendered by script.js -->
+        </div>
+
+        <div id="adminPagination" class="admin-pagination hidden">
+            <button id="adminPrevPageBtn" class="outline-button small-button" onclick="changeAdminPage(-1)">← Previous</button>
+            <span id="adminPageInfo" class="admin-page-info">Page 1 of 1</span>
+            <button id="adminNextPageBtn" class="outline-button small-button" onclick="changeAdminPage(1)">Next →</button>
+        </div>
+
+    </div>
+
+</section>
+
 </main>
 
 
@@ -947,12 +1082,219 @@
 
 
 <!-- PRODUCT DETAILS MODAL -->
-<div id="productModal" class="market-modal hidden" onclick="closeModal(event)">
+<div id="productModal" class="market-modal hidden" role="dialog" aria-modal="true" aria-label="Product Details" onclick="closeModal(event)">
   <div class="market-modal-card glass" onclick="event.stopPropagation()">
     <button class="modal-close" onclick="closeProductModal()">×</button>
     <div id="productDetails"></div>
   </div>
 </div>
+
+<!-- OTP VERIFICATION MODAL -->
+<div id="otpModal" class="market-modal hidden" role="dialog" aria-modal="true" aria-label="Email Verification" onclick="closeOtpModal(event)">
+  <div class="market-modal-card glass" onclick="event.stopPropagation()" style="max-width: 480px; text-align: center;">
+    <button class="modal-close" onclick="closeOtpModal()">×</button>
+    <div style="font-size: 38px; margin-bottom: 12px;">✉️</div>
+    <h2 style="margin: 0 0 8px 0; font-size: 24px;">Verify Your Email</h2>
+    <p id="otpModalSubtitle" style="color: #94a3b8; font-size: 14px; margin-bottom: 22px;">
+      Enter the 6-digit code sent to your email to verify your account.
+    </p>
+    <form id="otpForm" onsubmit="handleVerifyOtp(event)">
+      <div class="form-group" style="margin-bottom: 18px;">
+        <input
+          id="otpCodeInput"
+          type="text"
+          inputmode="numeric"
+          pattern="[0-9]{6}"
+          maxlength="6"
+          placeholder="000000"
+          required
+          style="font-size: 28px; text-align: center; letter-spacing: 8px; font-weight: 700; color: #38bdf8; background: rgba(15, 23, 42, 0.7); border: 1px solid rgba(56, 189, 248, 0.4); border-radius: 12px; padding: 12px;"
+        >
+      </div>
+      <button type="submit" class="primary-button full-button" id="verifyOtpBtn">
+        Verify Email Code
+      </button>
+    </form>
+    <div id="otpMessage" class="form-message" style="margin-top: 14px;"></div>
+    <div style="margin-top: 22px; display: flex; justify-content: space-between; align-items: center; font-size: 13px; border-top: 1px solid rgba(255, 255, 255, 0.08); padding-top: 16px;">
+      <span id="otpCooldownText" style="color: #64748b;">Didn't receive code?</span>
+      <button type="button" class="text-button" id="resendOtpBtn" onclick="handleResendOtp()" style="color: #38bdf8; cursor: pointer;">
+        Resend Code
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ADMIN REJECTION MODAL -->
+<div id="adminRejectModal" class="market-modal hidden" role="dialog" aria-modal="true" aria-label="Reject Registration Confirmation" onclick="closeAdminRejectModal(event)">
+  <div class="market-modal-card glass" onclick="event.stopPropagation()" style="max-width: 480px; text-align: left;">
+    <button class="modal-close" onclick="closeAdminRejectModal()">×</button>
+    <div style="font-size: 36px; margin-bottom: 8px;">⚠️</div>
+    <h3 style="margin: 0 0 8px 0; font-size: 22px;">Confirm Rejection</h3>
+    <p id="adminRejectPrompt" style="color: #94a3b8; font-size: 14px; margin-bottom: 18px;">
+      Are you sure you want to reject this registration? The student will be barred from selling, verification, and chat, and any active sessions will be terminated.
+    </p>
+    <div class="form-group" style="margin-bottom: 16px;">
+      <label style="display: block; font-size: 13px; color: #cbd5e1; margin-bottom: 6px;">Reason for Rejection (Optional)</label>
+      <input
+        id="adminRejectReasonInput"
+        type="text"
+        placeholder="e.g. Non-institutional email or invalid student details"
+        maxlength="255"
+        style="width: 100%; box-sizing: border-box; background: rgba(15, 23, 42, 0.7); border: 1px solid rgba(255, 255, 255, 0.15); border-radius: 8px; padding: 10px; color: #fff;"
+      >
+    </div>
+    <div style="display: flex; gap: 12px; justify-content: flex-end;">
+      <button type="button" class="outline-button small-button" onclick="closeAdminRejectModal()">Cancel</button>
+      <button type="button" class="primary-button small-button" id="confirmRejectBtn" style="background: #ef4444; border-color: #ef4444;" onclick="submitRejectRegistration()">Confirm Rejection</button>
+    </div>
+  </div>
+</div>
+
+<!-- EDIT PRODUCT MODAL -->
+<div id="editProductModal" class="market-modal hidden" role="dialog" aria-modal="true" aria-label="Edit Listing" onclick="closeEditProductModal(event)">
+  <div class="market-modal-card glass" onclick="event.stopPropagation()" style="max-width: 520px; text-align: left;">
+    <button class="modal-close" onclick="closeEditProductModal()">×</button>
+    <div style="font-size: 32px; margin-bottom: 8px;">✏️</div>
+    <h2 style="margin: 0 0 6px 0; font-size: 22px;">Edit Listing</h2>
+    <p style="color: #94a3b8; font-size: 13px; margin-bottom: 20px;">
+      Update your product title, category, price, or description.
+    </p>
+
+    <form id="editProductForm" onsubmit="handleSaveProductEdit(event)">
+      <input type="hidden" id="editProductId">
+
+      <div class="form-group" style="margin-bottom: 14px;">
+        <label style="display: block; font-size: 13px; color: #cbd5e1; margin-bottom: 6px;">Product Name</label>
+        <input
+          id="editProductName"
+          type="text"
+          maxlength="255"
+          placeholder="Enter product name"
+          required
+          style="width: 100%; box-sizing: border-box; background: rgba(15, 23, 42, 0.7); border: 1px solid rgba(255, 255, 255, 0.15); border-radius: 8px; padding: 10px; color: #fff;"
+        >
+      </div>
+
+      <div class="form-group" style="margin-bottom: 14px;">
+        <label style="display: block; font-size: 13px; color: #cbd5e1; margin-bottom: 6px;">Category</label>
+        <select
+          id="editProductCategory"
+          required
+          style="width: 100%; box-sizing: border-box; background: rgba(15, 23, 42, 0.7); border: 1px solid rgba(255, 255, 255, 0.15); border-radius: 8px; padding: 10px; color: #fff;"
+        >
+          <option value="Books">Books</option>
+          <option value="Electronics">Electronics</option>
+          <option value="Furniture">Furniture</option>
+          <option value="Accessories">Accessories</option>
+        </select>
+      </div>
+
+      <div class="form-group" style="margin-bottom: 14px;">
+        <label style="display: block; font-size: 13px; color: #cbd5e1; margin-bottom: 6px;">Price (₹)</label>
+        <input
+          id="editProductPrice"
+          type="number"
+          min="0"
+          step="1"
+          placeholder="Enter price"
+          required
+          style="width: 100%; box-sizing: border-box; background: rgba(15, 23, 42, 0.7); border: 1px solid rgba(255, 255, 255, 0.15); border-radius: 8px; padding: 10px; color: #fff;"
+        >
+      </div>
+
+      <div class="form-group" style="margin-bottom: 18px;">
+        <label style="display: block; font-size: 13px; color: #cbd5e1; margin-bottom: 6px;">Description</label>
+        <textarea
+          id="editProductDescription"
+          rows="4"
+          maxlength="2000"
+          placeholder="Describe your product..."
+          required
+          style="width: 100%; box-sizing: border-box; background: rgba(15, 23, 42, 0.7); border: 1px solid rgba(255, 255, 255, 0.15); border-radius: 8px; padding: 10px; color: #fff; font-family: inherit; resize: vertical;"
+        ></textarea>
+      </div>
+
+      <div style="display: flex; gap: 10px; justify-content: flex-end;">
+        <button type="button" class="outline-button small-button" onclick="closeEditProductModal()">Cancel</button>
+        <button type="submit" class="primary-button small-button" id="saveEditProductBtn">Save Changes</button>
+      </div>
+    </form>
+
+    <div id="editProductMessage" class="form-message" style="margin-top: 12px;"></div>
+  </div>
+</div>
+
+<!-- ARCHIVE CONFIRMATION MODAL -->
+<div id="archiveConfirmModal" class="market-modal hidden" role="dialog" aria-modal="true" aria-label="Archive Listing Confirmation" onclick="closeArchiveModal(event)">
+  <div class="market-modal-card glass" onclick="event.stopPropagation()" style="max-width: 480px; text-align: left;">
+    <button class="modal-close" onclick="closeArchiveModal()">×</button>
+    <div style="font-size: 36px; margin-bottom: 8px;">📦</div>
+    <h3 style="margin: 0 0 8px 0; font-size: 22px;">Archive Listing</h3>
+    <p id="archiveConfirmPrompt" style="color: #94a3b8; font-size: 14px; margin-bottom: 20px; line-height: 1.6;">
+      Are you sure you want to archive this listing? It will be removed from the public marketplace, but existing conversations will be safely preserved.
+    </p>
+    <div style="display: flex; gap: 12px; justify-content: flex-end;">
+      <button type="button" class="outline-button small-button" onclick="closeArchiveModal()">Cancel</button>
+      <button type="button" class="primary-button small-button" id="confirmArchiveBtn" style="background: #e11d48; border-color: #e11d48;" onclick="submitArchiveProduct()">Archive Listing</button>
+    </div>
+  </div>
+</div>
+
+<!-- ==================================================
+     SITE-WIDE FOOTER
+================================================== -->
+<footer class="site-footer glass">
+  <div class="footer-container">
+    <div class="footer-col footer-col-brand">
+      <div class="footer-logo">
+        <span class="logo-icon">🎓</span> Campus<span>Market</span>
+      </div>
+      <p class="footer-desc">
+        A trusted peer-to-peer campus marketplace where students buy, sell, and exchange items safely within their university community.
+      </p>
+      <div class="footer-status-indicator">
+        <span class="status-dot-small"></span> Verified Campus Network
+      </div>
+    </div>
+
+    <div class="footer-col">
+      <h4>Marketplace</h4>
+      <ul>
+        <li><button class="footer-link" onclick="showPage('products')">Browse Catalog</button></li>
+        <li><button class="footer-link" onclick="showPage('sell')">Sell a Product</button></li>
+        <li><button class="footer-link" onclick="showPage('my-listings')">My Listings</button></li>
+      </ul>
+    </div>
+
+    <div class="footer-col">
+      <h4>Account & Trust</h4>
+      <ul>
+        <li><button class="footer-link" onclick="showPage('verification')">Student Verification</button></li>
+        <li><button class="footer-link" onclick="showPage('chat')">Student Messages</button></li>
+        <li><button class="footer-link" onclick="showPage('login')">Account Portal</button></li>
+      </ul>
+    </div>
+
+    <div class="footer-col">
+      <h4>Platform Specs</h4>
+      <ul>
+        <li><span class="footer-meta">Runtime: Node.js REST API</span></li>
+        <li><span class="footer-meta">Database: MySQL InnoDB</span></li>
+        <li><span class="footer-meta">Security: Bcrypt &amp; OTP Verif.</span></li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="footer-bottom">
+    <div class="footer-copy">
+      &copy; <span id="footerYear">2026</span> Campus Marketplace. Built for student commerce.
+    </div>
+    <div class="footer-note">
+      Soft Archival Protection &bull; Zero External Tracking
+    </div>
+  </div>
+</footer>
 
 <div id="serverStatus" class="server-status" aria-live="polite">
     <span class="status-dot-small"></span> Connecting to CampusMarket server...

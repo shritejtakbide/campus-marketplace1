@@ -1,6 +1,29 @@
 {
+  "name": "campus-marketplace",
+  "version": "1.0.0",
+  "description": "Campus Marketplace - Peer-to-Peer Student Marketplace",
+  "main": "backend/server.js",
+  "scripts": {
+    "start": "node backend/server.js",
+    "dev": "node backend/server.js",
+    "backup": "node database/backup.js",
+    "migrate": "node database/migrate.js",
+    "test": "node database/test_phase6.js",
+    "test:phase2": "node database/test_phase2.js",
+    "test:phase3": "node database/test_phase3.js",
+    "test:phase4": "node database/test_phase4.js",
+    "test:phase5": "node database/test_phase5.js",
+    "test:phase6": "node database/test_phase6.js",
+    "test:phase7a": "node database/test_phase7a.js",
+    "test:all": "node database/test_phase2.js && node database/test_phase3.js && node database/test_phase4.js && node database/test_phase5.js && node database/test_phase6.js && node database/test_phase7a.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
   "dependencies": {
+    "bcrypt": "^6.0.0",
     "dotenv": "^18.0.0",
-    "mysql2": "^3.24.4"
+    "mysql2": "^3.24.4",
+    "nodemailer": "^10.2.1"
   }
 }
